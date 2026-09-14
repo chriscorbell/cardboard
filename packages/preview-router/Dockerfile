@@ -4,7 +4,7 @@ RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
 WORKDIR /repo
 
 FROM base AS build
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 COPY packages/preview-router/package.json packages/preview-router/
 RUN pnpm install --frozen-lockfile --filter @cardboard/preview-router --config.confirmModulesPurge=false
 COPY packages/preview-router packages/preview-router

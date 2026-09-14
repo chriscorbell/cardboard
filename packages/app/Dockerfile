@@ -4,7 +4,7 @@ RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
 WORKDIR /repo
 
 FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/app/package.json packages/app/
 RUN pnpm install --frozen-lockfile --filter @cardboard/app... --config.confirmModulesPurge=false
@@ -15,7 +15,7 @@ COPY packages/app packages/app
 RUN pnpm --filter @cardboard/app build
 
 FROM base AS prod-deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/app/package.json packages/app/
 RUN pnpm install --frozen-lockfile --prod --filter @cardboard/app... --config.confirmModulesPurge=false

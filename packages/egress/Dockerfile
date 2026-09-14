@@ -4,7 +4,7 @@ RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
 WORKDIR /repo
 
 FROM base AS build
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 COPY packages/egress/package.json packages/egress/
 RUN pnpm install --frozen-lockfile --filter @cardboard/egress --config.confirmModulesPurge=false
 COPY packages/egress packages/egress
