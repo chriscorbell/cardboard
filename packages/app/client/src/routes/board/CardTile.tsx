@@ -1,6 +1,6 @@
 import { forwardRef, type HTMLAttributes } from "react";
 import { GitPullRequest, MessageSquare, RotateCcw } from "lucide-react";
-import type { Card, User } from "@cardboard/shared";
+import type { AgentProfile, Card, User } from "@cardboard/shared";
 import { Avatar, cx } from "../../components/ui";
 
 const PRIORITY: Record<Card["priority"], { label: string; className: string } | null> = {
@@ -22,12 +22,12 @@ export function WorkingDot({ className }: { className?: string }) {
 type Props = HTMLAttributes<HTMLDivElement> & {
   card: Card;
   creator: User | undefined;
-  agentName: string;
+  agent: AgentProfile;
   dragging?: boolean;
   overlay?: boolean;
 };
 
-export const CardTile = forwardRef<HTMLDivElement, Props>(function CardTile({ card, creator, agentName, dragging, overlay, className, ...rest }, ref) {
+export const CardTile = forwardRef<HTMLDivElement, Props>(function CardTile({ card, creator, agent, dragging, overlay, className, ...rest }, ref) {
   const priority = PRIORITY[card.priority];
   const working = card.activeSession && card.activeSession.status !== "queued";
   const queued = card.activeSession?.status === "queued";
@@ -60,7 +60,7 @@ export const CardTile = forwardRef<HTMLDivElement, Props>(function CardTile({ ca
           {working ? (
             <span className="inline-flex items-center gap-1.5 text-accent">
               <WorkingDot />
-              {agentName}
+              {agent.name}
             </span>
           ) : queued ? (
             <span className="text-ink-muted">Starting</span>
@@ -69,7 +69,7 @@ export const CardTile = forwardRef<HTMLDivElement, Props>(function CardTile({ ca
               <RotateCcw className="size-3.5" strokeWidth={1.75} />
             </span>
           ) : null}
-          {creator ? <Avatar name={creator.name} url={creator.avatarUrl} size={20} /> : card.creatorKind === "agent" ? <Avatar name={agentName} size={20} tone="agent" /> : null}
+          {creator ? <Avatar name={creator.name} url={creator.avatarUrl} size={20} /> : card.creatorKind === "agent" ? <Avatar name={agent.name} url={agent.avatarUrl} size={20} tone="agent" /> : null}
         </span>
       </div>
     </div>

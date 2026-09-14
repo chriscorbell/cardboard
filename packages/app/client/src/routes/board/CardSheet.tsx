@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Check, ChevronDown, ExternalLink, FileText, GitBranch, GitPullRequest, History, Pencil, RotateCcw, Square, X } from "lucide-react";
-import { COLUMNS, COLUMN_LABELS, PRIORITIES, type ActivityEntry, type Attachment, type BoardView, type Card, type Column, type Comment, type Priority, type User } from "@cardboard/shared";
+import { COLUMNS, COLUMN_LABELS, PRIORITIES, type ActivityEntry, type AgentProfile, type Attachment, type BoardView, type Card, type Column, type Comment, type Priority, type User } from "@cardboard/shared";
 import { useApproveCard, useCard, useCreateComment, useMe, useMoveCard, useUpdateCard, useUpdateComment, request, keys } from "../../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, Button, Chip, cx, IconButton, Input, Skeleton, Textarea } from "../../components/ui";
@@ -179,11 +179,11 @@ function SheetBody({ slug, cardId, view, onClose }: { slug: string; cardId: stri
           {detail.isPending ? (
             <Skeleton className="h-16" />
           ) : (
-            <CommentList comments={detail.data?.comments ?? []} members={members} agentName={view.agent.name} handles={handles} meId={me.data?.user.id ?? ""} cardId={card.id} />
+            <CommentList comments={detail.data?.comments ?? []} members={members} agent={view.agent} handles={handles} meId={me.data?.user.id ?? ""} cardId={card.id} />
           )}
         </div>
         <div className="px-6 pb-4">
-          <NewComment cardId={card.id} members={view.members} agentName={view.agent.name} />
+          <NewComment cardId={card.id} members={view.members} agent={view.agent} />
         </div>
         <Activity entries={detail.data?.activity ?? []} members={members} agentName={view.agent.name} />
       </div>
@@ -327,14 +327,15 @@ function AttachmentView({ a }: { a: Attachment }) {
   );
 }
 
-function CommentList({ comments, members, agentName, handles, meId, cardId }: { comments: Comment[]; members: Map<string, User>; agentName: string; handles: Map<string, string>; meId: string; cardId: string }) {
+function CommentList({ comments, members, agent, handles, meId, cardId }: { comments: Comment[]; members: Map<string, User>; agent: AgentProfile; handles: Map<string, string>; meId: string; cardId: string }) {
+  const agentName = agent.name;
   const [editingId, setEditingId] = useState<string | null>(null);
   const updateComment = useUpdateComment(cardId);
   if (comments.length === 0) return <p className="text-[13px] text-ink-faint">No comments yet.</p>;
   return (
     <ol className="flex flex-col gap-5">
       {comments.map((c) => {
-        const author = c.authorKind === "agent" ? { name: agentName, avatarUrl: null } : c.authorId ? members.get(c.authorId) : undefined;
+        const author = c.authorKind === "agent" ? agent : c.authorId ? members.get(c.authorId) : undefined;
         const mine = c.authorKind === "user" && c.authorId === meId;
         return (
           <li key={c.id} className="flex gap-3">
@@ -356,7 +357,7 @@ function CommentList({ comments, members, agentName, handles, meId, cardId }: { 
                 <div className="mt-1.5">
                   <Composer
                     members={[...members.values()]}
-                    agentName={agentName}
+                    agent={agent}
                     initialBody={c.body}
                     submitLabel="Save"
                     allowFiles={false}
@@ -388,11 +389,11 @@ function CommentList({ comments, members, agentName, handles, meId, cardId }: { 
   );
 }
 
-function NewComment({ cardId, members, agentName }: { cardId: string; members: User[]; agentName: string }) {
+function NewComment({ cardId, members, agent }: { cardId: string; members: User[]; agent: AgentProfile }) {
   const create = useCreateComment(cardId);
   return (
     <div className="mt-5 border-t border-line pt-4">
-      <Composer members={members} agentName={agentName} onSubmit={(body, files) => create.mutateAsync({ body, files }).then(() => undefined)} />
+      <Composer members={members} agent={agent} onSubmit={(body, files) => create.mutateAsync({ body, files }).then(() => undefined)} />
     </div>
   );
 }

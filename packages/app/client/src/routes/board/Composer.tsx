@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Paperclip, Send, X } from "lucide-react";
-import type { User } from "@cardboard/shared";
+import type { AgentProfile, User } from "@cardboard/shared";
 import { Avatar, Button, cx, IconButton, Textarea } from "../../components/ui";
 
 type Props = {
   members: User[];
-  agentName: string;
+  agent: AgentProfile;
   onSubmit: (body: string, files: File[]) => Promise<void>;
   initialBody?: string;
   submitLabel?: string;
@@ -15,7 +15,7 @@ type Props = {
 };
 
 // A textarea with @mention completion. Typing "@" opens a list of Board members filtered by what follows.
-export function Composer({ members, agentName, onSubmit, initialBody = "", submitLabel = "Post", onCancel, allowFiles = true, autoFocus }: Props) {
+export function Composer({ members, agent, onSubmit, initialBody = "", submitLabel = "Post", onCancel, allowFiles = true, autoFocus }: Props) {
   const [body, setBody] = useState(initialBody);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -26,11 +26,11 @@ export function Composer({ members, agentName, onSubmit, initialBody = "", submi
   const fileRef = useRef<HTMLInputElement>(null);
 
   const candidates = useMemo(() => {
-    const all = [{ handle: agentName.toLowerCase(), name: agentName, avatarUrl: null as string | null, agent: true }, ...members.map((m) => ({ handle: m.handle, name: m.name, avatarUrl: m.avatarUrl, agent: false }))];
+    const all = [{ handle: agent.name.toLowerCase(), name: agent.name, avatarUrl: agent.avatarUrl, agent: true }, ...members.map((m) => ({ handle: m.handle, name: m.name, avatarUrl: m.avatarUrl, agent: false }))];
     if (!mention) return [];
     const q = mention.query.toLowerCase();
     return all.filter((c) => c.handle.startsWith(q) || c.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [members, mention, agentName]);
+  }, [members, mention, agent]);
 
   useEffect(() => {
     if (autoFocus) ref.current?.focus();

@@ -5,23 +5,23 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Plus } from "lucide-react";
-import { COLUMNS, COLUMN_LABELS, type Card, type Column, type User } from "@cardboard/shared";
+import { COLUMNS, COLUMN_LABELS, type AgentProfile, type Card, type Column, type User } from "@cardboard/shared";
 import { useBoard, useMe, useMoveCard } from "../lib/api";
 import { useBoardEvents } from "../lib/realtime";
-import { Button, cx, IconButton, Skeleton } from "../components/ui";
+import { Avatar, Button, cx, IconButton, Skeleton } from "../components/ui";
 import { CardTile, WorkingDot } from "./board/CardTile";
 import { NewCardDialog } from "./board/NewCardDialog";
 import { CardSheet } from "./board/CardSheet";
 import { COLUMN_HINTS } from "./board/columns";
 
-function SortableCard({ card, creator, agentName, onOpen }: { card: Card; creator: User | undefined; agentName: string; onOpen: () => void }) {
+function SortableCard({ card, creator, agent, onOpen }: { card: Card; creator: User | undefined; agent: AgentProfile; onOpen: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id, data: { column: card.column } });
   return (
     <CardTile
       ref={setNodeRef}
       card={card}
       creator={creator}
-      agentName={agentName}
+      agent={agent}
       dragging={isDragging}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className="cursor-grab active:cursor-grabbing"
@@ -37,7 +37,7 @@ function SortableCard({ card, creator, agentName, onOpen }: { card: Card; creato
   );
 }
 
-function ColumnLane({ column, cards, members, agentName, onOpen, onNew, canAdd }: { column: Column; cards: Card[]; members: Map<string, User>; agentName: string; onOpen: (id: string) => void; onNew: () => void; canAdd: boolean }) {
+function ColumnLane({ column, cards, members, agent, onOpen, onNew, canAdd }: { column: Column; cards: Card[]; members: Map<string, User>; agent: AgentProfile; onOpen: (id: string) => void; onNew: () => void; canAdd: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${column}`, data: { column } });
   const reduce = useReducedMotion();
   return (
@@ -59,7 +59,7 @@ function ColumnLane({ column, cards, members, agentName, onOpen, onNew, canAdd }
           <AnimatePresence initial={false}>
             {cards.map((card) => (
               <motion.div key={card.id} layout={!reduce} initial={reduce ? false : { opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}>
-                <SortableCard card={card} creator={card.creatorId ? members.get(card.creatorId) : undefined} agentName={agentName} onOpen={() => onOpen(card.id)} />
+                <SortableCard card={card} creator={card.creatorId ? members.get(card.creatorId) : undefined} agent={agent} onOpen={() => onOpen(card.id)} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -145,7 +145,8 @@ export function BoardPage() {
     );
   }
   const isAdmin = me.data?.user.role === "admin";
-  const agentName = board.data.agent.name;
+  const agent = board.data.agent;
+  const agentName = agent.name;
 
   return (
     <div className="flex h-full flex-col">
@@ -155,12 +156,14 @@ export function BoardPage() {
         </Button>
         <div className="ml-auto flex items-center gap-2 text-[12.5px] text-ink-muted">
           {activeSessions.length > 0 ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent-soft px-2.5 py-1 text-accent">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent-soft py-1 pl-1 pr-2.5 text-accent">
+              <Avatar name={agent.name} url={agent.avatarUrl} size={18} tone="agent" />
               <WorkingDot />
               {agentName} is working on {activeSessions.length === 1 ? "1 card" : `${activeSessions.length} cards`}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-2 rounded-full border border-line px-2.5 py-1">
+            <span className="inline-flex items-center gap-2 rounded-full border border-line py-1 pl-1 pr-2.5">
+              <Avatar name={agent.name} url={agent.avatarUrl} size={18} tone="agent" />
               <span className="size-2 rounded-full bg-ink-faint" />
               {agentName} is idle
             </span>
@@ -175,7 +178,7 @@ export function BoardPage() {
               column={column}
               cards={byColumn[column]}
               members={members}
-              agentName={agentName}
+              agent={agent}
               onOpen={(id) => navigate(`/b/${slug}/c/${id}`)}
               onNew={() => setCreating(true)}
               canAdd={column === "inbox"}
@@ -183,7 +186,7 @@ export function BoardPage() {
           ))}
         </div>
         <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }}>
-          {activeCard ? <CardTile card={activeCard} creator={activeCard.creatorId ? members.get(activeCard.creatorId) : undefined} agentName={agentName} overlay className="w-[284px]" /> : null}
+          {activeCard ? <CardTile card={activeCard} creator={activeCard.creatorId ? members.get(activeCard.creatorId) : undefined} agent={agent} overlay className="w-[284px]" /> : null}
         </DragOverlay>
       </DndContext>
       <NewCardDialog slug={slug} open={creating} onClose={() => setCreating(false)} isAdmin={Boolean(isAdmin)} />
