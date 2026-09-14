@@ -1,21 +1,62 @@
-# Cardboard
+<div align="center">
 
-A self-hosted, agent-native kanban platform. Every human change to a Board starts a disposable coding-agent Session that implements the request or asks for what it needs. The design is in [docs/design.md](docs/design.md), the vocabulary in [CONTEXT.md](CONTEXT.md), and the decisions with trade-offs in [docs/adr](docs/adr/).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/cardboard-wordmark-on-dark.png">
+  <img src="docs/brand/cardboard-wordmark-on-light.png" alt="Cardboard" width="320">
+</picture>
 
-## Layout
+**A self-hosted kanban board where every card change summons a coding agent.**
 
-| Path | What it is |
+</div>
+
+<br>
+
+![A Cardboard board with six columns and an agent working on a card](docs/brand/screenshot-board.png)
+
+## What it does
+
+Cardboard is a kanban board for one project per board. Your clients, teammates, or you write cards. About a minute after a card is created, edited, commented on, or moved, Cardboard starts a **Session**: a disposable container running Claude Code (or Codex) that clones the project, reads the board over MCP, and either does the work or asks a clarifying question on the card.
+
+When the work is done, the Session opens a pull request and moves the card to Review. A member presses **Approve**, and Cardboard merges the pull request, moves the card to Done, and lets everyone know. Sessions can push branches but can never merge; that authority stays with Cardboard.
+
+![A card in Review with a pull request, a preview link, and the Approve control](docs/brand/screenshot-card.png)
+
+## Features
+
+- **Six fixed columns** with clear meanings: Inbox, Blocked, Ready, In Progress, Review, Done.
+- **Cards** with Markdown descriptions, priority, comments, `@mentions`, and file attachments.
+- **One agent identity** across all boards, with a configurable name and avatar (the default is Milo).
+- **Per-board settings** for the repository, provider, model, reasoning level, preview mode, member access, and extra instructions.
+- **Sessions that see the whole board**: an MCP server exposes the ledger of active Sessions, every card, comments, and attachments, plus tools to comment, move, and create cards.
+- **Safe by construction**: Sessions run with resource limits, a wall clock, a one-hour repository token, and no access to your provider credentials, which stay in a proxy.
+- **Approvals bound to code**: an Approval records the pull request commit the reviewer saw. A later push voids it.
+- **Email notifications** for mentions and card moves, through Resend.
+- **Invite-only access** with Clerk. Only email addresses you add can sign in, and each member only sees their boards.
+- **Live updates** over server-sent events, verified nightly database snapshots, and an admin panel for users, boards, the agent, sessions, and backups.
+
+## How a Session works
+
+1. A human change to a card is a **Trigger**. Triggers on the same card within a minute are batched.
+2. Cardboard claims the card and asks the **runner** to start a container from the agent image.
+3. The container clones the repository on a branch named after the card and starts the provider CLI with a workflow prompt and the Cardboard MCP server.
+4. The Session orients, classifies the request, implements it, runs the repository's acceptance command from `AGENTS.md`, pushes, and opens a pull request.
+5. It reports with one comment and moves the card to Review. Unclear requests go to Blocked with a question instead.
+6. On Approve, Cardboard squash-merges through a second GitHub App that bypasses the branch ruleset, deletes the branch, and moves the card to Done.
+
+## Architecture
+
+| Service | Role |
 | --- | --- |
-| `packages/app` | Hono server (REST API, MCP endpoint, orchestrator, SQLite via Drizzle) and the Vite + React client |
-| `packages/shared` | Types and zod schemas shared by server and client |
-| `packages/runner` | Owns the Docker socket. Starts and stops Session containers, streams their logs to disk |
-| `packages/egress` | Credential-injecting proxy so Session containers never hold the provider token |
-| `packages/preview-router` | Hostname routing and signed-cookie gate for runner-hosted Previews |
-| `images/agent` | The default Session image: Node, Bun, Python, Go, git, gh, Claude Code, Codex |
-| `deploy/` | Compose file, env template, and the GitHub Apps guide for minicore |
-| `skills/cardboard-onboard` | Agent skill that prepares a repository for Cardboard; symlink it into `~/.claude/skills` |
+| `packages/app` | Web app, REST API, MCP server, orchestrator. SQLite via Drizzle. Vite + React client. |
+| `packages/runner` | The only service with the Docker socket. Starts and stops Session containers and keeps their logs. |
+| `packages/egress` | Proxy that injects the provider credential, so containers never hold it. |
+| `packages/preview-router` | Routes runner-hosted previews by hostname behind a signed cookie. |
+| `images/agent` | The default Session image: Node, Bun, Python, Go, git, gh, Claude Code, Codex. |
+| `packages/shared` | Types and schemas shared by server and client. |
 
-## Run it locally
+Vocabulary is defined in [CONTEXT.md](CONTEXT.md). Design decisions with trade-offs live in [docs/adr](docs/adr/), and the full design in [docs/design.md](docs/design.md).
+
+## Getting started
 
 Requires Node 24+ and pnpm 11.
 
@@ -24,41 +65,49 @@ pnpm install
 pnpm dev
 ```
 
-The server listens on 3070 and Vite on 5173 with `/api` and `/mcp` proxied. With no `.env`, auth runs in dev mode: every request is the seeded Admin, and a demo Board with cards and comments is created on first start. Data lives in `packages/app/data`. Delete that directory to reseed.
-
-Copy `packages/app/.env.example` to `packages/app/.env` to change the port, data directory, auth mode, or email delivery. Without `RESEND_API_KEY` outgoing emails are logged to stdout. Without `CARDBOARD_RUNNER_URL` Sessions are recorded but nothing runs; the board still shows the working indicator so the flow can be exercised.
+Open http://localhost:5173. With no `.env` present, authentication runs in **dev mode**: every request is the seeded admin, and a demo board with cards and comments is created on first start. Sessions are recorded but nothing runs until a runner is configured.
 
 Other commands:
 
 ```bash
-pnpm typecheck        # every package
-pnpm test             # node:test suites, currently packages/app/server/test
-pnpm build            # client bundle plus server to packages/app/dist
-pnpm db:generate      # new Drizzle migration after editing server/src/db/schema.ts
+pnpm typecheck   # every package
+pnpm test        # every package
+pnpm build       # client bundle and server output
+pnpm db:generate # a new migration after editing the schema
 ```
 
-## How a Session reaches Cardboard
+## Configuration
 
-Session containers get a bearer token in `CARDBOARD_TOKEN` and talk to `POST /mcp` on the app. The MCP tools are `get_ledger`, `announce_intent`, `get_board`, `get_card`, `read_attachment`, `post_comment`, `move_card`, `create_card`, `set_work_state`, and `finish`. Every call is authorised by the Session's Board, and pull-request state only for its own Card. The runner reports container exit to `POST /api/internal/sessions/:id/exit` with the shared runner token.
+Copy `packages/app/.env.example` to `packages/app/.env`. The variables that matter most:
 
-## Deploy to minicore
+| Variable | Purpose |
+| --- | --- |
+| `CARDBOARD_AUTH` | `dev` or `clerk`. |
+| `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY` | Clerk credentials for `clerk` mode. |
+| `CARDBOARD_ADMIN_EMAIL` | The first admin, created on first start. |
+| `RESEND_API_KEY`, `CARDBOARD_EMAIL_FROM` | Email delivery. Without a key, emails are logged instead of sent. |
+| `CARDBOARD_RUNNER_URL`, `CARDBOARD_RUNNER_TOKEN` | Where the runner is and the shared secret between app and runner. |
+| `GITHUB_SESSIONS_APP_*`, `GITHUB_MERGE_APP_*` | The two GitHub Apps. See [deploy/github-apps.md](deploy/github-apps.md). |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Held by the egress proxy only. Create it with `claude setup-token`. |
+| `CARDBOARD_BACKUP_HOUR`, `CARDBOARD_BACKUP_KEEP` | Daily snapshot hour and how many to keep. |
 
-CI publishes `ghcr.io/chriscorbell/cardboard-{app,runner,egress,preview-router,agent}` on every push to `main`. On minicore:
+## Deploying
 
-1. Copy `deploy/compose.yaml` to `~/docker/stacks/cardboard/compose.yaml` and `deploy/.env.example` to `.env` beside it, then fill the secrets.
-2. `docker compose up -d`. Watchtower keeps the four services current; Session containers carry the opt-out label.
-3. Add `cardboard.xode.cc` to the Cloudflare Tunnel pointing at `http://10.0.0.20:3070`, and `*.preview.xode.cc` at port 3073.
+Cardboard ships as five Docker images built by the included GitHub Actions workflow. [`deploy/compose.yaml`](deploy/compose.yaml) runs the four services on any Docker host, with separate networks so Session containers can reach the app and the credential proxy but never the runner. Put the public hostname in front of the app's port with whatever reverse proxy or tunnel you already use.
 
-The `.env` beside the compose file is never committed: keep the master copy in `deploy/.env` locally and `scp` it to `~/docker/stacks/cardboard/.env` on minicore when it changes. The stack has been live at `https://cardboard.xode.cc` since 2026-09-14.
+External services you need to set up once:
 
-Steps that need the Admin's hands: creating the Clerk application, verifying `cardboard.xode.cc` in Resend, creating and installing the GitHub App, and running `claude setup-token` for the egress proxy. The design document lists them.
+- A **Clerk** application for sign-in.
+- A **Resend** domain for email.
+- Two **GitHub Apps**, one for Sessions and one for merges, installed on each project repository, plus a branch ruleset that requires an approved pull request. [deploy/github-apps.md](deploy/github-apps.md) walks through it.
 
-## Backups
+## Onboarding a repository
 
-The app writes one verified SQLite snapshot a day to `backups/` on the data bind mount with `VACUUM INTO`, keeps the newest 14, and shows them under Admin → Backups, where *Snapshot now* takes one on demand. Copying the live `cardboard.db` is not a backup: recent commits sit in the write-ahead log. Restoring is a host procedure with the app stopped, and attachments in `uploads/` are backed up separately. [docs/runbooks/backups.md](docs/runbooks/backups.md) has the settings, the restore steps, and how to copy snapshots off the host.
+Each board points at one repository. To prepare one, run the `cardboard-onboard` skill from `skills/` in that repository with your coding agent, or follow the same steps by hand: give `AGENTS.md` a verified acceptance command, install both GitHub Apps, create the `cardboard` ruleset, and add the board in the admin panel.
+
+> [!NOTE]
+> Cardboard is itself a board on Cardboard. Some of its own changes arrive as pull requests from Milo.
 
 ## Status
 
-Live at `https://cardboard.xode.cc` since 2026-09-14. Verified end to end on two repositories, this one included: sign-in through Clerk, card to Session, per-Session GitHub tokens, pull request with the acceptance command passing, Approval bound to the reviewed commit, merge by Cardboard through the Merge app, and email at each step. Not yet built: runner-hosted Previews and their cookie flow, Provider fallback on usage limits, invitation emails, child-card dispatch, and Codex through the egress proxy. Open review findings are listed at the top of the [design review](docs/design-review.md).
-
-To prepare a repository for a board, run the `cardboard-onboard` skill in that repository, or follow [deploy/github-apps.md](deploy/github-apps.md) by hand.
+The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Still to come: runner-hosted previews, provider fallback on usage limits, invitation emails, and Codex through the credential proxy. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.

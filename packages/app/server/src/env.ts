@@ -34,7 +34,7 @@ export const env = {
   clerkSecretKey: str("CLERK_SECRET_KEY"),
   clerkPublishableKey: str("CLERK_PUBLISHABLE_KEY") || str("VITE_CLERK_PUBLISHABLE_KEY"),
   resendApiKey: str("RESEND_API_KEY"),
-  emailFrom: str("CARDBOARD_EMAIL_FROM", "Milo <milo@cardboard.xode.cc>"),
+  emailFrom: str("CARDBOARD_EMAIL_FROM", "Milo <milo@example.com>"),
   runnerUrl: str("CARDBOARD_RUNNER_URL"),
   runnerToken: str("CARDBOARD_RUNNER_TOKEN"),
   githubSessionsApp: githubApp("GITHUB_SESSIONS_APP"),
