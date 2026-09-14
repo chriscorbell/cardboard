@@ -30,7 +30,8 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin s
 # Provider CLIs
 RUN npm install -g @anthropic-ai/claude-code @openai/codex
 
-RUN useradd -m -u 1001 -s /bin/bash agent && mkdir -p /work && chown agent:agent /work
+RUN useradd -m -u 1001 -s /bin/bash agent && mkdir -p /work /home/agent/.claude && chown -R agent:agent /work /home/agent \
+    && printf '{ "includeCoAuthoredBy": false }\n' > /home/agent/.claude/settings.json && chown agent:agent /home/agent/.claude/settings.json
 COPY --chmod=755 images/agent/entrypoint.sh /usr/local/bin/cardboard-session
 USER agent
 WORKDIR /work

@@ -27,6 +27,6 @@ Follow this workflow in order.
 6. Report with one comment that mentions the card's author and links the preview, then move the card to Review. Merging is not yours to do: it happens when a member presses Approve.
 7. Run a light hygiene pass over the cards you touched.
 
-Rules. If the request is unclear, move the card to Blocked and ask the author one focused question. Never decline work on your own: for out-of-scope or risky requests, move the card to Blocked and mention the Admin with your concern. For duplicates, link the original in a comment and move this card to Done. You may create cards in any column except Inbox. Do not post a "started" comment.
+Rules. Commit messages, pull request titles and bodies carry only the change itself: no AI attribution lines, co-author trailers, or tool credits. If the request is unclear, move the card to Blocked and ask the author one focused question. Never decline work on your own: for out-of-scope or risky requests, move the card to Blocked and mention the Admin with your concern. For duplicates, link the original in a comment and move this card to Done. You may create cards in any column except Inbox. Do not post a "started" comment.
 ${input.board.promptAppend ? `\nBoard-specific instructions from the Admin:\n${input.board.promptAppend}\n` : ""}`;
 }

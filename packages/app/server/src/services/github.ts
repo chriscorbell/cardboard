@@ -119,6 +119,7 @@ export interface PullRequest {
   number: number;
   url: string;
   title: string;
+  body: string;
   headSha: string;
   headRef: string;
   state: "open" | "closed";
@@ -127,8 +128,8 @@ export interface PullRequest {
   mergeableState: string;
 }
 
-function toPr(p: { number: number; html_url: string; title: string; head: { sha: string; ref: string }; state: "open" | "closed"; merged?: boolean; merged_at?: string | null; mergeable?: boolean | null; mergeable_state?: string }): PullRequest {
-  return { number: p.number, url: p.html_url, title: p.title, headSha: p.head.sha, headRef: p.head.ref, state: p.state, merged: Boolean(p.merged ?? p.merged_at), mergeable: p.mergeable ?? null, mergeableState: p.mergeable_state ?? "unknown" };
+function toPr(p: { number: number; html_url: string; title: string; body?: string | null; head: { sha: string; ref: string }; state: "open" | "closed"; merged?: boolean; merged_at?: string | null; mergeable?: boolean | null; mergeable_state?: string }): PullRequest {
+  return { number: p.number, url: p.html_url, title: p.title, body: p.body ?? "", headSha: p.head.sha, headRef: p.head.ref, state: p.state, merged: Boolean(p.merged ?? p.merged_at), mergeable: p.mergeable ?? null, mergeableState: p.mergeable_state ?? "unknown" };
 }
 
 export async function getPullRequest(owner: string, repo: string, number: number): Promise<PullRequest | null> {
@@ -149,11 +150,25 @@ export type MergeOutcome = { ok: true; sha: string } | { ok: false; reason: "hea
 
 // Squash-merge with GitHub's head-SHA precondition: if anyone pushed after the Approval was
 // recorded, GitHub answers 409 and nothing merges.
-export async function mergePullRequest(owner: string, repo: string, number: number, expectedHeadSha: string, title: string): Promise<MergeOutcome> {
+// Attribution lines that tools append to commits and pull requests. The squash commit carries none of them.
+const ATTRIBUTION_LINE = /^\s*(co-authored-by:|signed-off-by:|generated with|🤖)/i;
+
+export function stripAttribution(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !ATTRIBUTION_LINE.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export async function mergePullRequest(owner: string, repo: string, number: number, expectedHeadSha: string, title: string, body: string): Promise<MergeOutcome> {
   const { token } = await mintInstallationToken("merge", owner, repo);
+  // GitHub's default squash message concatenates every branch commit, trailers included. Passing
+  // the message explicitly keeps the history to the pull request's own description.
   const r = await gh<{ merged?: boolean; sha?: string; message?: string }>(token, `/repos/${owner}/${repo}/pulls/${number}/merge`, {
     method: "PUT",
-    body: JSON.stringify({ merge_method: "squash", sha: expectedHeadSha, commit_title: title }),
+    body: JSON.stringify({ merge_method: "squash", sha: expectedHeadSha, commit_title: title, commit_message: stripAttribution(body) }),
   });
   if (r.status === 200 && r.body.merged) return { ok: true, sha: r.body.sha! };
   if (r.status === 409) return { ok: false, reason: "head_changed", message: r.body.message ?? "head changed" };

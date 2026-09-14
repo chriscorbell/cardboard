@@ -69,7 +69,7 @@ export async function approveCard(cardId: string, actor: Actor): Promise<Approva
     // No GitHub integration for this board: the Session handles the approval as before.
     await enqueueTrigger({ card, kind: "approval", actorUserId: actor.id, payload: { approvalId: id } });
   } else {
-    const outcome = await mergePullRequest(repo.owner, repo.repo, pr.number, pr.headSha, `${pr.title} (#${pr.number})`);
+    const outcome = await mergePullRequest(repo.owner, repo.repo, pr.number, pr.headSha, `${pr.title} (#${pr.number})`, pr.body);
     if (outcome.ok) {
       await recordEvent({ boardId: card.boardId, cardId, actor: AGENT, type: "card.merged", payload: { prNumber: pr.number, mergeSha: outcome.sha } });
       await deleteBranch(repo.owner, repo.repo, pr.headRef).catch(() => {});
