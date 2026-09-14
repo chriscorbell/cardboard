@@ -7,9 +7,10 @@ import { URL } from "node:url";
 //
 // Route: /anthropic/* -> https://api.anthropic.com/*  (Claude Code with ANTHROPIC_BASE_URL)
 //
-// Verification still owed (see docs/design.md): Claude Code launched with a placeholder
-// ANTHROPIC_API_KEY sends x-api-key; a subscription token authenticates with a bearer header plus
-// the oauth beta flag. Both header rewrites happen below and must be checked against a live session.
+// Verified 2026-09-14: a raw /v1/messages call from a workload container with no credential
+// received a model reply through this proxy, so the bearer plus oauth beta rewrite is accepted
+// upstream. Claude Code itself is launched with a placeholder ANTHROPIC_API_KEY so it uses the
+// API-key path; the x-api-key header it sends is dropped here.
 
 const port = Number(process.env.PORT ?? "8787");
 const claudeToken = process.env.CLAUDE_CODE_OAUTH_TOKEN ?? "";
