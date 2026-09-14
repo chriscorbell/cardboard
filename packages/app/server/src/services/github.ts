@@ -113,6 +113,7 @@ export function botIdentity(kind: GitHubAppKind): { name: string; email: string 
 export interface PullRequest {
   number: number;
   url: string;
+  title: string;
   headSha: string;
   headRef: string;
   state: "open" | "closed";
@@ -121,8 +122,8 @@ export interface PullRequest {
   mergeableState: string;
 }
 
-function toPr(p: { number: number; html_url: string; head: { sha: string; ref: string }; state: "open" | "closed"; merged?: boolean; merged_at?: string | null; mergeable?: boolean | null; mergeable_state?: string }): PullRequest {
-  return { number: p.number, url: p.html_url, headSha: p.head.sha, headRef: p.head.ref, state: p.state, merged: Boolean(p.merged ?? p.merged_at), mergeable: p.mergeable ?? null, mergeableState: p.mergeable_state ?? "unknown" };
+function toPr(p: { number: number; html_url: string; title: string; head: { sha: string; ref: string }; state: "open" | "closed"; merged?: boolean; merged_at?: string | null; mergeable?: boolean | null; mergeable_state?: string }): PullRequest {
+  return { number: p.number, url: p.html_url, title: p.title, headSha: p.head.sha, headRef: p.head.ref, state: p.state, merged: Boolean(p.merged ?? p.merged_at), mergeable: p.mergeable ?? null, mergeableState: p.mergeable_state ?? "unknown" };
 }
 
 export async function getPullRequest(owner: string, repo: string, number: number): Promise<PullRequest | null> {
