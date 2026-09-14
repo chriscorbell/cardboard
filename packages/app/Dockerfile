@@ -25,7 +25,7 @@ ENV NODE_ENV=production PORT=3070 CARDBOARD_DATA_DIR=/data
 WORKDIR /repo/packages/app
 COPY --from=prod-deps /repo/node_modules /repo/node_modules
 COPY --from=prod-deps /repo/packages/app/node_modules ./node_modules
-COPY --from=prod-deps /repo/packages/shared /repo/packages/shared
+COPY packages/shared /repo/packages/shared
 COPY --from=build /repo/packages/app/dist ./dist
 COPY packages/app/drizzle ./drizzle
 COPY packages/app/package.json ./package.json
