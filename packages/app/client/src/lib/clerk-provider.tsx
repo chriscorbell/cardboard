@@ -1,4 +1,4 @@
-import { ClerkProvider, SignIn, useAuth as useClerkAuth, useUser } from "@clerk/clerk-react";
+import { ClerkProvider, SignIn, useAuth as useClerkAuth, useUser } from "@clerk/react";
 import { useCallback, useEffect, type ReactNode } from "react";
 import { ClerkBridge, clerkPublishableKey } from "./auth";
 import { setTokenProvider } from "./api";
@@ -35,10 +35,13 @@ export default function ClerkAuthProvider({ children }: { children: ReactNode })
       appearance={{
         variables: {
           colorBackground: "#191816",
-          colorText: "#ece7de",
+          colorForeground: "#ece7de",
+          colorMutedForeground: "#a69f93",
           colorPrimary: "#d9a05b",
-          colorInputBackground: "#121110",
-          colorInputText: "#ece7de",
+          colorPrimaryForeground: "#1b1710",
+          colorInput: "#121110",
+          colorInputForeground: "#ece7de",
+          colorBorder: "#3b3833",
           borderRadius: "10px",
           fontFamily: "Geist Variable, ui-sans-serif, system-ui, sans-serif",
         },

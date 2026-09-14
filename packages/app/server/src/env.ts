@@ -1,4 +1,13 @@
+import fs from "node:fs";
 import path from "node:path";
+
+// Load packages/app/.env when present (dev). In production the compose file supplies the environment.
+for (const candidate of [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]) {
+  if (fs.existsSync(candidate)) {
+    process.loadEnvFile(candidate);
+    break;
+  }
+}
 
 function str(name: string, fallback = ""): string {
   const v = process.env[name];
