@@ -20,6 +20,8 @@ export const boards = sqliteTable("boards", {
   name: text("name").notNull(),
   repoUrl: text("repo_url"),
   provider: text("provider", { enum: ["claude", "codex"] }).notNull().default("claude"),
+  model: text("model"),
+  reasoning: text("reasoning", { enum: ["low", "medium", "high", "max"] }),
   previewMode: text("preview_mode", { enum: ["external", "runner"] }).notNull().default("external"),
   agentImage: text("agent_image"),
   maxConcurrentSessions: integer("max_concurrent_sessions").notNull().default(3),

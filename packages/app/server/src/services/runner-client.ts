@@ -4,6 +4,8 @@ export interface StartSessionRequest {
   sessionId: string;
   boardSlug: string;
   provider: "claude" | "codex";
+  model: string | null;
+  reasoning: string | null;
   image: string | null;
   repoUrl: string | null;
   branch: string | null;

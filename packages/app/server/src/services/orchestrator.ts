@@ -144,6 +144,8 @@ async function dispatch(cardId: string): Promise<void> {
       sessionId,
       boardSlug: board.slug,
       provider: board.provider,
+      model: board.model,
+      reasoning: board.reasoning,
       image: board.agentImage,
       repoUrl: board.repoUrl,
       branch,

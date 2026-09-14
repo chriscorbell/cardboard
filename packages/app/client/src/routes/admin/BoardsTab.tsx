@@ -12,6 +12,8 @@ type Draft = {
   slug: string;
   repoUrl: string;
   provider: "claude" | "codex";
+  model: string;
+  reasoning: "" | "low" | "medium" | "high" | "max";
   previewMode: "external" | "runner";
   agentImage: string;
   maxConcurrentSessions: number;
@@ -19,10 +21,10 @@ type Draft = {
   memberIds: string[];
 };
 
-const empty: Draft = { name: "", slug: "", repoUrl: "", provider: "claude", previewMode: "external", agentImage: "", maxConcurrentSessions: 3, promptAppend: "", memberIds: [] };
+const empty: Draft = { name: "", slug: "", repoUrl: "", provider: "claude", model: "", reasoning: "", previewMode: "external", agentImage: "", maxConcurrentSessions: 3, promptAppend: "", memberIds: [] };
 
 function fromBoard(b: AdminBoard): Draft {
-  return { name: b.name, slug: b.slug, repoUrl: b.repoUrl ?? "", provider: b.provider, previewMode: b.previewMode, agentImage: b.agentImage ?? "", maxConcurrentSessions: b.maxConcurrentSessions, promptAppend: b.promptAppend, memberIds: b.memberIds };
+  return { name: b.name, slug: b.slug, repoUrl: b.repoUrl ?? "", provider: b.provider, model: b.model ?? "", reasoning: b.reasoning ?? "", previewMode: b.previewMode, agentImage: b.agentImage ?? "", maxConcurrentSessions: b.maxConcurrentSessions, promptAppend: b.promptAppend, memberIds: b.memberIds };
 }
 
 export function BoardsTab() {
@@ -43,6 +45,8 @@ export function BoardsTab() {
         slug: draft.slug,
         repoUrl: draft.repoUrl || null,
         provider: draft.provider,
+        model: draft.model.trim() || null,
+        reasoning: draft.reasoning || null,
         previewMode: draft.previewMode,
         agentImage: draft.agentImage || null,
         maxConcurrentSessions: draft.maxConcurrentSessions,
@@ -132,6 +136,20 @@ export function BoardsTab() {
             </Field>
             <Field label="Max sessions">
               <Input type="number" min={1} max={10} value={draft.maxConcurrentSessions} onChange={(e) => setDraft({ ...draft, maxConcurrentSessions: Number(e.target.value) })} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Model" hint={draft.provider === "claude" ? "Claude Code --model. Empty uses its default. Examples: opus, sonnet." : "Codex -m. Empty uses its default. Example: gpt-5.5."}>
+              <Input value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} placeholder="provider default" className="font-mono text-[13px]" />
+            </Field>
+            <Field label="Reasoning" hint={draft.provider === "claude" ? "Claude Code effort level." : "Codex reasoning effort; max means xhigh."}>
+              <Select value={draft.reasoning} onChange={(e) => setDraft({ ...draft, reasoning: e.target.value as Draft["reasoning"] })}>
+                <option value="">Provider default</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="max">Max</option>
+              </Select>
             </Field>
           </div>
           <Field label="Agent image override" hint="Leave empty for the default image.">

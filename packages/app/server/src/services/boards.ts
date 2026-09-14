@@ -12,6 +12,8 @@ export function toBoard(row: typeof schema.boards.$inferSelect): Board {
     name: row.name,
     repoUrl: row.repoUrl,
     provider: row.provider,
+    model: row.model,
+    reasoning: row.reasoning,
     previewMode: row.previewMode,
     agentImage: row.agentImage,
     maxConcurrentSessions: row.maxConcurrentSessions,
@@ -86,6 +88,8 @@ export type BoardInput = {
   slug: string;
   repoUrl?: string | null;
   provider: "claude" | "codex";
+  model?: string | null;
+  reasoning?: "low" | "medium" | "high" | "max" | null;
   previewMode: "external" | "runner";
   agentImage?: string | null;
   maxConcurrentSessions: number;
@@ -100,6 +104,8 @@ export async function createBoard(input: BoardInput): Promise<Board> {
     name: input.name,
     repoUrl: input.repoUrl ?? null,
     provider: input.provider,
+    model: input.model || null,
+    reasoning: input.reasoning ?? null,
     previewMode: input.previewMode,
     agentImage: input.agentImage ?? null,
     maxConcurrentSessions: input.maxConcurrentSessions,
@@ -116,6 +122,8 @@ export async function updateBoard(id: string, input: BoardInput): Promise<Board>
       name: input.name,
       repoUrl: input.repoUrl ?? null,
       provider: input.provider,
+      model: input.model || null,
+      reasoning: input.reasoning ?? null,
       previewMode: input.previewMode,
       agentImage: input.agentImage ?? null,
       maxConcurrentSessions: input.maxConcurrentSessions,

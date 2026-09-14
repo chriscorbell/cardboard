@@ -36,8 +36,11 @@ JSON
 case "$CARDBOARD_PROVIDER" in
   claude)
     log "starting claude code"
+    MODEL_ARGS=(); [ -n "${CARDBOARD_MODEL:-}" ] && MODEL_ARGS=(--model "$CARDBOARD_MODEL")
+    # Effort level: Claude Code reads CLAUDE_CODE_EFFORT_LEVEL (low, medium, high, max).
+    [ -n "${CARDBOARD_REASONING:-}" ] && export CLAUDE_CODE_EFFORT_LEVEL="$CARDBOARD_REASONING"
     exec timeout --signal=TERM "${WALL_CLOCK_MINUTES}m" \
-      claude -p "$PROMPT" \
+      claude -p "$PROMPT" "${MODEL_ARGS[@]}" \
         --mcp-config /tmp/mcp.json \
         --permission-mode acceptEdits \
         --allowedTools "mcp__cardboard__*,Bash,Read,Edit,Write,Glob,Grep,WebFetch" \
@@ -50,8 +53,14 @@ case "$CARDBOARD_PROVIDER" in
 url = "$CARDBOARD_MCP_URL"
 http_headers = { "Authorization" = "Bearer $CARDBOARD_TOKEN" }
 TOML
+    MODEL_ARGS=(); [ -n "${CARDBOARD_MODEL:-}" ] && MODEL_ARGS=(-m "$CARDBOARD_MODEL")
+    # Codex calls the top level "xhigh"; Cardboard's "max" maps to it.
+    if [ -n "${CARDBOARD_REASONING:-}" ]; then
+      EFFORT="$CARDBOARD_REASONING"; [ "$EFFORT" = "max" ] && EFFORT="xhigh"
+      MODEL_ARGS+=(-c "model_reasoning_effort=\"$EFFORT\"")
+    fi
     exec timeout --signal=TERM "${WALL_CLOCK_MINUTES}m" \
-      codex exec --full-auto "$PROMPT"
+      codex exec --full-auto "${MODEL_ARGS[@]}" "$PROMPT"
     ;;
   *)
     log "unknown provider $CARDBOARD_PROVIDER"; exit 64 ;;

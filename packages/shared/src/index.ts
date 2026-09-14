@@ -22,6 +22,10 @@ export const PROVIDERS = ["claude", "codex"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 export const providerSchema = z.enum(PROVIDERS);
 
+export const REASONING_LEVELS = ["low", "medium", "high", "max"] as const;
+export type Reasoning = (typeof REASONING_LEVELS)[number];
+export const reasoningSchema = z.enum(REASONING_LEVELS);
+
 export const PREVIEW_MODES = ["external", "runner"] as const;
 export type PreviewMode = (typeof PREVIEW_MODES)[number];
 
@@ -75,6 +79,8 @@ export interface Board {
   name: string;
   repoUrl: string | null;
   provider: Provider;
+  model: string | null;
+  reasoning: Reasoning | null;
   previewMode: PreviewMode;
   agentImage: string | null;
   maxConcurrentSessions: number;
@@ -239,6 +245,8 @@ export const upsertBoardSchema = z.object({
     .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "lowercase letters, digits, and hyphens"),
   repoUrl: z.string().url().nullable().optional(),
   provider: providerSchema.default("claude"),
+  model: z.string().trim().max(80).nullable().optional(),
+  reasoning: reasoningSchema.nullable().optional(),
   previewMode: z.enum(PREVIEW_MODES).default("external"),
   agentImage: z.string().trim().max(200).nullable().optional(),
   maxConcurrentSessions: z.number().int().min(1).max(10).default(3),
