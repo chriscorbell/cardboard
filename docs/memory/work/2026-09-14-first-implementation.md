@@ -42,5 +42,9 @@ Branch: `main`, pushed to `github.com/chriscorbell/cardboard` (public since 2026
 
 The stack runs on minicore from `~/docker/stacks/cardboard` (compose committed to `chriscorbell/stacks`, `.env` copied by scp, secrets never committed). `https://cardboard.xode.cc/healthz` answers through the Cloudflare Tunnel. Clerk production instance (secondary application, Google OAuth with custom credentials) is configured; the publishable key is injected into the page at request time from `CLERK_PUBLISHABLE_KEY` or `VITE_CLERK_PUBLISHABLE_KEY`. All server secrets are set as of 2026-09-14, including Resend and the Claude Code token. Image lessons: the app image must ship `packages/shared` source plus its `node_modules`; compose services need `init: true` or SIGTERM waits 30 s; every push rebuilds all five images so Watchtower restarts every service.
 
-Next action: sign in on the production URL as the Admin, invite the first member, then fill `CLAUDE_CODE_OAUTH_TOKEN` and verify the egress header rewrite with one real Session against a test repository. Decide the design-review P1 items before any client repository.
+## End-to-end verified 2026-09-14
+
+Two real Sessions ran on minicore against a Sandbox board with no repository: Claude Code started in the agent container in about 15 s, called the MCP tools (ledger, board, card, announce, comment, move), and exited cleanly. The runner's exit report reaches the app (internal routes are registered before the user API). Resend delivered a mention email from `milo@cardboard.xode.cc` after the sending domain was changed to the verified `cardboard.xode.cc`. Boot reconciliation against the runner inventory exists but has not been exercised by a real restart mid-Session.
+
+Next action: a Session against a real repository, which needs the GitHub App and token minting (design-review finding 1 decides the merge authority first). Then invite the first member.
 Close when: the stack runs on minicore behind `cardboard.xode.cc` and one real Session completes against a test repository.

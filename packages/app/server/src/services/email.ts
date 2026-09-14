@@ -63,4 +63,5 @@ async function deliver(id: string): Promise<void> {
     .update(schema.outboundEmails)
     .set({ status: "sent", sentAt: new Date().toISOString() })
     .where(eq(schema.outboundEmails.id, id));
+  console.log(`[email] sent to=${user.email} subject=${JSON.stringify(row.subject)}`);
 }
