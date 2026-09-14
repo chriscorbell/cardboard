@@ -30,7 +30,7 @@ Branch: `main`, local commits only, nothing pushed. No GitHub repository exists 
 - Egress proxy header rewrite for subscription tokens (`Authorization: Bearer` plus `anthropic-beta: oauth-2025-04-20`) is unverified against a live Claude Code session.
 - Codex MCP config syntax in `images/agent/entrypoint.sh` is unverified.
 - `/api/internal/previews` and `/preview-auth` are referenced by the preview router but not implemented in the app.
-- No nightly sweep scheduler, no GitHub App token minting, no `read_attachment` size guard beyond 200 KB text.
+- Nightly sweep scheduler exists (`server/src/services/sweep.ts`, 03:00 local, skipped in noop mode) but has never started a real container. No GitHub App token minting. `read_attachment` inlines text only up to 200 KB.
 - Browser-automation note: the in-app browser's `key` action does not reach React keydown handlers; dispatching a KeyboardEvent does. Not an app bug.
 
 Next action: review with the user, decide the P1 items, create the GitHub repo, push, and deploy the app container to minicore on port 3070 with a placeholder Clerk config.

@@ -11,6 +11,7 @@ import { api } from "./routes/api.js";
 import { mcp } from "./routes/mcp.js";
 import { internal } from "./routes/internal.js";
 import { recoverOnBoot } from "./services/orchestrator.js";
+import { startSweepScheduler } from "./services/sweep.js";
 import { ensureSeed } from "./seed.js";
 
 const app = new Hono();
@@ -39,6 +40,7 @@ app.onError((err, c) => {
 await runMigrations();
 await ensureSeed();
 await recoverOnBoot();
+startSweepScheduler();
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`cardboard app listening on http://localhost:${info.port} (auth=${env.authMode})`);

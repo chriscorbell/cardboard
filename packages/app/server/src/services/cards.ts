@@ -5,6 +5,7 @@ import { newId } from "../ids.js";
 import { publish } from "./realtime.js";
 import { recordEvent, type Actor } from "./events.js";
 import { enqueueTrigger } from "./orchestrator.js";
+import { notifyCardMoved } from "./notifications.js";
 
 export function toSessionSummary(row: typeof schema.sessions.$inferSelect): SessionSummary {
   return {
@@ -216,6 +217,7 @@ export async function moveCard(
     });
   }
   publish(card.boardId, { type: "card.upserted", card });
+  if (columnChanged) void notifyCardMoved(card, current.column, input.actor).catch((err) => console.error("[notify] card moved", err));
   if (columnChanged && input.actor.kind === "user" && !input.silent) {
     await enqueueTrigger({
       card,

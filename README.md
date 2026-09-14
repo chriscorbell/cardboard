@@ -51,4 +51,4 @@ Steps that need the Admin's hands: creating the Clerk application, verifying `xo
 
 ## Status
 
-The app, client, MCP endpoint, runner, egress proxy, and deploy files exist and typecheck. Not yet built: GitHub App token minting, runner-hosted Previews and the app side of preview cookies, the nightly sweep scheduler, and Codex through the egress proxy. The [design review](docs/design-review.md) lists P1 findings on merge authorisation, Approval binding, child-card dispatch, restart recovery, preview cookies, and network isolation that need decisions before Sessions run against client repositories.
+The app, client, MCP endpoint, runner, egress proxy, and deploy files exist and typecheck. Not yet built: GitHub App token minting, runner-hosted Previews and the app side of preview cookies, and Codex through the egress proxy. The nightly sweep scheduler and card-moved emails exist but have only run in noop mode. The [design review](docs/design-review.md) lists P1 findings on merge authorisation, Approval binding, child-card dispatch, restart recovery, preview cookies, and network isolation that need decisions before Sessions run against client repositories.

@@ -41,7 +41,7 @@ function ColumnLane({ column, cards, members, agentName, onOpen, onNew, canAdd }
   const { setNodeRef, isOver } = useDroppable({ id: `col:${column}`, data: { column } });
   const reduce = useReducedMotion();
   return (
-    <section className="flex w-[228px] min-w-[228px] flex-1 flex-col lg:max-w-[320px]" aria-label={COLUMN_LABELS[column]}>
+    <section className="flex min-w-[84vw] flex-1 snap-start flex-col sm:min-w-[228px] lg:max-w-[320px]" aria-label={COLUMN_LABELS[column]}>
       <header className="flex h-9 items-center gap-2 px-1">
         <h2 className="text-[13px] font-semibold text-ink">{COLUMN_LABELS[column]}</h2>
         <span className="font-mono text-[11.5px] text-ink-faint">{cards.length}</span>
@@ -168,7 +168,7 @@ export function BoardPage() {
         </div>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
-        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4 pt-3">
+        <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 pt-3 sm:snap-none">
           {COLUMNS.map((column) => (
             <ColumnLane
               key={column}

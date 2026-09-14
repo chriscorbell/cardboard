@@ -26,8 +26,8 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
             <span className="text-ink-faint">/</span>
             <Menu
               trigger={
-                <button className="inline-flex h-8 items-center gap-1.5 rounded-control px-2 text-sm font-medium text-ink transition-colors hover:bg-raised">
-                  {current?.name ?? (isAdmin ? "Admin" : "Boards")}
+                <button className="inline-flex h-8 max-w-[40vw] items-center gap-1.5 rounded-control px-2 text-sm font-medium text-ink transition-colors hover:bg-raised sm:max-w-none">
+                  <span className="truncate">{current?.name ?? (isAdmin ? "Admin" : "Boards")}</span>
                   <ChevronDown className="size-4 text-ink-faint" strokeWidth={1.75} />
                 </button>
               }
@@ -47,7 +47,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
               }
             >
               <Settings2 className="size-4" strokeWidth={1.75} />
-              Admin
+              <span className="hidden sm:inline">Admin</span>
             </NavLink>
           ) : null}
           <Menu
@@ -66,7 +66,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
       </header>
       <main className="min-h-0 flex-1">{children}</main>
       {mode === "dev" ? (
-        <div className="pointer-events-none fixed bottom-3 left-3 z-40 rounded-full border border-line bg-surface/90 px-2.5 py-1 font-mono text-[11px] text-ink-faint backdrop-blur">
+        <div className="pointer-events-none fixed bottom-3 left-3 z-40 hidden rounded-full sm:block border border-line bg-surface/90 px-2.5 py-1 font-mono text-[11px] text-ink-faint backdrop-blur">
           dev auth as <Link to="/admin" className="pointer-events-auto text-ink-muted">{me.user.handle}</Link>
         </div>
       ) : null}

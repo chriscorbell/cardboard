@@ -295,12 +295,12 @@ function ReviewBlock({ card, agentName, approvals, members, onApprove, busy }: {
           </span>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
             <p className="text-[13.5px] font-medium text-ink">Ready for your review</p>
             <p className="mt-0.5 text-[12.5px] text-ink-muted">Check the preview. Approving lets {agentName} merge {card.prNumber ? `pull request #${card.prNumber}` : "the change"} and close this card. Ask for changes in a comment instead if it's not right.</p>
           </div>
-          <Button variant="primary" loading={busy} icon={<Check className="size-4" strokeWidth={2} />} onClick={() => void onApprove()}>
+          <Button variant="primary" className="w-full sm:w-auto" loading={busy} icon={<Check className="size-4" strokeWidth={2} />} onClick={() => void onApprove()}>
             Approve
           </Button>
         </div>
