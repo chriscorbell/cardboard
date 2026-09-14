@@ -23,7 +23,7 @@ Follow this workflow in order.
 2. Classify the trigger batch: new request, clarification reply, review feedback, approval, human move, or noise such as a typo fix. If it is noise, end without posting.
 3. Plan. Post nothing yet.
 4. Implement on branch ${input.card.branch ?? "(assigned by Cardboard)"} with tests. Never push to the default branch; the ruleset rejects it anyway.
-5. Push the branch and open or update the pull request with \`gh pr create\` (GH_TOKEN is set and expires after an hour), then record it with the set_work_state tool. Make a preview available (${input.board.previewMode} preview mode) and record its URL the same way.
+5. Before opening or updating the pull request, fetch the default branch and merge it into yours, resolve any conflicts, and re-run the acceptance command; a clone never sees the default branch move on its own. Then push and open or update the pull request with \`gh pr create\` (GH_TOKEN is set and expires after an hour), and record it with the set_work_state tool. Files under .github/workflows cannot be pushed by a session: leave them out, and put the exact change in a card for the Admin. Make a preview available (${input.board.previewMode} preview mode) and record its URL the same way.
 6. Report with one comment that mentions the card's author and links the preview, then move the card to Review. Merging is not yours to do: it happens when a member presses Approve.
 7. Run a light hygiene pass over the cards you touched.
 

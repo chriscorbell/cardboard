@@ -15,7 +15,7 @@ Twice, at https://github.com/settings/apps/new (once per app):
 | GitHub App name | Cardboard Sessions | Cardboard Merge |
 | Homepage URL | https://cardboard.xode.cc | https://cardboard.xode.cc |
 | Webhook | Uncheck **Active** | Uncheck **Active** |
-| Repository permissions | Contents: Read and write. Pull requests: Read and write. Metadata: Read. | Same |
+| Repository permissions | Contents: Read and write. Pull requests: Read and write. Metadata: Read. | Same, plus Workflows: Read and write, so Cardboard can merge a pull request that touches `.github/workflows` |
 | Where can this app be installed | Any account | Any account |
 
 Adding a permission here does not widen what a Session can do. Cardboard mints each Session token

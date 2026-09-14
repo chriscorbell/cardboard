@@ -96,9 +96,14 @@ export interface InstallationToken {
 export async function mintInstallationToken(kind: GitHubAppKind, owner: string, repo: string): Promise<InstallationToken> {
   const cfg = appConfig(kind)!;
   const id = await installationId(kind, owner, repo);
+  // Session tokens are narrowed to the three permissions a Session needs. The merge token takes
+  // everything the Merge app installation holds, so a pull request touching workflow files can be
+  // merged once the app is granted `workflows: write`.
+  const body: Record<string, unknown> = { repositories: [repo] };
+  if (kind === "sessions") body.permissions = { contents: "write", pull_requests: "write", metadata: "read" };
   const r = await gh<{ token?: string; expires_at?: string; message?: string }>(appJwt(cfg), `/app/installations/${id}/access_tokens`, {
     method: "POST",
-    body: JSON.stringify({ repositories: [repo], permissions: { contents: "write", pull_requests: "write", metadata: "read" } }),
+    body: JSON.stringify(body),
   });
   if (r.status !== 201 || !r.body.token) throw new GitHubError(`could not mint ${kind} token: ${r.status} ${r.body.message ?? ""}`, r.status);
   return { token: r.body.token, expiresAt: r.body.expires_at! };
