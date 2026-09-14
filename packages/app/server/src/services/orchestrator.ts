@@ -231,7 +231,8 @@ export async function listAllSessions(limit = 100): Promise<(SessionSummary & { 
 
 // Called once at boot: anything that was active when the process died is reconciled here.
 export async function recoverOnBoot(): Promise<void> {
-  const stale = await db.select().from(schema.sessions).where(inArray(schema.sessions.status, [...ACTIVE]));
+  // In noop mode there are no containers to reconcile against, so recorded sessions are left alone.
+  const stale = runner.mode === "noop" ? [] : await db.select().from(schema.sessions).where(inArray(schema.sessions.status, [...ACTIVE]));
   for (const s of stale) {
     // Without runner inventory reconciliation (not built yet) the safe choice is to fail and let pending triggers re-dispatch.
     await endSession(s.id, "failed", "The app restarted while this session was active.");

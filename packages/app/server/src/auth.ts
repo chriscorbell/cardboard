@@ -50,7 +50,8 @@ async function resolveUser(c: Context): Promise<User | null> {
     return row ? toUser(row) : null;
   }
   const header = c.req.header("authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  // EventSource cannot set headers, so the SSE route may carry the token as a query parameter.
+  const token = header.startsWith("Bearer ") ? header.slice(7) : (c.req.path.endsWith("/events") ? (c.req.query("token") ?? null) : null);
   if (!token) return null;
   const k = await getClerk();
   const verified = await k.verifyToken(token);

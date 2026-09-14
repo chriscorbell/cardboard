@@ -1,0 +1,448 @@
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowUpRight, Check, ChevronDown, ExternalLink, FileText, GitBranch, GitPullRequest, History, Pencil, RotateCcw, Square, X } from "lucide-react";
+import { COLUMNS, COLUMN_LABELS, PRIORITIES, type ActivityEntry, type Attachment, type BoardView, type Card, type Column, type Comment, type Priority, type User } from "@cardboard/shared";
+import { useApproveCard, useCard, useCreateComment, useMe, useMoveCard, useUpdateCard, useUpdateComment, request, keys } from "../../lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { Avatar, Button, Chip, cx, IconButton, Input, Skeleton, Textarea } from "../../components/ui";
+import { Menu } from "../../components/Menu";
+import { Markdown } from "../../components/Markdown";
+import { absoluteTime, relativeTime, shortId } from "../../lib/format";
+import { Composer } from "./Composer";
+import { COLUMN_TONES } from "./columns";
+import { WorkingDot } from "./CardTile";
+
+const PRIORITY_LABELS: Record<Priority, string> = { none: "No priority", low: "Low", medium: "Medium", high: "High" };
+
+export function CardSheet({ slug, cardId, view, onClose }: { slug: string; cardId: string | null; view: BoardView; onClose: () => void }) {
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (!cardId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement) && !(e.target instanceof HTMLInputElement)) onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [cardId, onClose]);
+  return (
+    <AnimatePresence>
+      {cardId ? (
+        <motion.div key="sheet-root" className="fixed inset-0 z-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+          <div className="absolute inset-0 bg-bg/50" onClick={onClose} />
+          <motion.aside
+            key={cardId}
+            initial={reduce ? false : { x: 40, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 40, opacity: 0 }}
+            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-y-0 right-0 flex w-full max-w-[680px] flex-col border-l border-line-strong bg-surface shadow-[-24px_0_64px_-24px_rgba(0,0,0,0.7)]"
+            aria-label="Card"
+          >
+            <SheetBody slug={slug} cardId={cardId} view={view} onClose={onClose} />
+          </motion.aside>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+function SheetBody({ slug, cardId, view, onClose }: { slug: string; cardId: string; view: BoardView; onClose: () => void }) {
+  const me = useMe();
+  const detail = useCard(cardId);
+  const update = useUpdateCard(slug);
+  const move = useMoveCard(slug);
+  const approve = useApproveCard(slug);
+  const qc = useQueryClient();
+  const members = useMemo(() => new Map(view.members.map((m) => [m.id, m])), [view.members]);
+  const handles = useMemo(() => {
+    const m = new Map(view.members.map((u) => [u.handle, u.name]));
+    m.set(view.agent.name.toLowerCase(), view.agent.name);
+    return m;
+  }, [view.members, view.agent.name]);
+  const card = detail.data?.card ?? view.cards.find((c) => c.id === cardId);
+  const isAdmin = me.data?.user.role === "admin";
+
+  if (!card) {
+    return (
+      <div className="flex flex-1 flex-col gap-3 p-6">
+        <Skeleton className="h-6 w-2/3" />
+        <Skeleton className="h-24" />
+      </div>
+    );
+  }
+  const session = card.activeSession;
+
+  return (
+    <>
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4">
+        <Menu
+          trigger={
+            <button className="inline-flex items-center gap-1 rounded-full">
+              <Chip tone={COLUMN_TONES[card.column]}>
+                {COLUMN_LABELS[card.column]}
+                <ChevronDown className="size-3" strokeWidth={2} />
+              </Chip>
+            </button>
+          }
+          items={COLUMNS.map((c) => ({ label: COLUMN_LABELS[c], active: c === card.column, onSelect: () => c !== card.column && move.mutate({ id: card.id, column: c, position: Number.MAX_SAFE_INTEGER / 2, revision: card.revision }) }))}
+        />
+        <span className="font-mono text-[11.5px] text-ink-faint">{shortId(card.id)}</span>
+        <span className="ml-auto" />
+        <Menu
+          align="right"
+          trigger={
+            <button className="inline-flex h-7 items-center gap-1 rounded-control px-2 text-[12.5px] text-ink-muted hover:bg-raised hover:text-ink">
+              {PRIORITY_LABELS[card.priority]}
+              <ChevronDown className="size-3.5" strokeWidth={1.75} />
+            </button>
+          }
+          items={PRIORITIES.map((p) => ({ label: PRIORITY_LABELS[p], active: p === card.priority, onSelect: () => p !== card.priority && update.mutate({ id: card.id, priority: p, revision: card.revision }) }))}
+        />
+        <IconButton label="Close" onClick={onClose}>
+          <X className="size-4" strokeWidth={1.75} />
+        </IconButton>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="px-6 pt-5">
+          <TitleEditor card={card} onSave={(title) => update.mutateAsync({ id: card.id, title, revision: card.revision })} />
+          <p className="mt-1.5 text-[12px] text-ink-faint">
+            Opened {relativeTime(card.createdAt)} by {card.creatorKind === "agent" ? view.agent.name : (card.creatorId && members.get(card.creatorId)?.name) || "someone"}
+            {card.parentCardId ? <> as part of a larger request</> : null}
+          </p>
+        </div>
+
+        {session || card.pendingRerun ? (
+          <div className="mx-6 mt-4 rounded-card border border-accent/25 bg-accent-soft px-3.5 py-3">
+            {session ? (
+              <div className="flex items-start gap-2.5">
+                <WorkingDot className="mt-1.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium text-accent">
+                    {view.agent.name} {session.status === "queued" ? "is starting a session" : "is working on this"}
+                    {session.startedAt ? <span className="font-normal text-accent/70"> since {relativeTime(session.startedAt)}</span> : null}
+                  </p>
+                  {session.intent ? <p className="mt-0.5 text-[13px] text-ink-muted">{session.intent}</p> : null}
+                  {card.pendingRerun ? <p className="mt-1 text-[12px] text-ink-faint">Your latest changes are queued for the next session.</p> : null}
+                </div>
+                {isAdmin ? (
+                  <span className="flex shrink-0 gap-1">
+                    <Button size="sm" variant="ghost" icon={<Square className="size-3.5" strokeWidth={2} />} onClick={() => void cancelSession(session.id, false, qc, slug, card.id)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" variant="ghost" icon={<RotateCcw className="size-3.5" strokeWidth={2} />} onClick={() => void cancelSession(session.id, true, qc, slug, card.id)}>
+                      Re-run
+                    </Button>
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-[13px] text-ink-muted">Changes are queued. {view.agent.name} will pick them up in the next session.</p>
+            )}
+          </div>
+        ) : null}
+
+        <div className="px-6 pt-5">
+          <DescriptionEditor card={card} handles={handles} onSave={(description) => update.mutateAsync({ id: card.id, description, revision: card.revision })} />
+        </div>
+
+        {card.branch || card.prUrl || card.previewUrl ? (
+          <div className="mx-6 mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-line bg-bg px-3.5 py-2.5 text-[12.5px]">
+            {card.branch ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-ink-muted">
+                <GitBranch className="size-3.5" strokeWidth={1.75} />
+                {card.branch}
+              </span>
+            ) : null}
+            {card.prUrl ? (
+              <a href={card.prUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-ink no-underline hover:text-accent">
+                <GitPullRequest className="size-3.5" strokeWidth={1.75} />
+                Pull request {card.prNumber ? `#${card.prNumber}` : ""}
+                <ArrowUpRight className="size-3" strokeWidth={1.75} />
+              </a>
+            ) : null}
+            {card.previewUrl ? (
+              <a href={card.previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-ink no-underline hover:text-accent">
+                <ExternalLink className="size-3.5" strokeWidth={1.75} />
+                Open preview
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+
+        {card.column === "review" ? (
+          <ReviewBlock card={card} agentName={view.agent.name} approvals={detail.data?.approvals ?? []} members={members} onApprove={() => approve.mutateAsync(card.id)} busy={approve.isPending} />
+        ) : null}
+
+        <div className="px-6 pb-2 pt-6">
+          <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">Comments</h3>
+          {detail.isPending ? (
+            <Skeleton className="h-16" />
+          ) : (
+            <CommentList comments={detail.data?.comments ?? []} members={members} agentName={view.agent.name} handles={handles} meId={me.data?.user.id ?? ""} cardId={card.id} />
+          )}
+        </div>
+        <div className="px-6 pb-4">
+          <NewComment cardId={card.id} members={view.members} agentName={view.agent.name} />
+        </div>
+        <Activity entries={detail.data?.activity ?? []} members={members} agentName={view.agent.name} />
+      </div>
+    </>
+  );
+}
+
+async function cancelSession(id: string, rerun: boolean, qc: ReturnType<typeof useQueryClient>, slug: string, cardId: string) {
+  await request(`/admin/sessions/${id}/cancel${rerun ? "?rerun=1" : ""}`, { method: "POST" });
+  await qc.invalidateQueries({ queryKey: keys.board(slug) });
+  await qc.invalidateQueries({ queryKey: keys.card(cardId) });
+}
+
+function TitleEditor({ card, onSave }: { card: Card; onSave: (title: string) => Promise<unknown> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(card.title);
+  useEffect(() => setValue(card.title), [card.title]);
+  if (!editing) {
+    return (
+      <h1 className="group flex cursor-text items-start gap-2 text-[19px] font-semibold leading-snug tracking-tight text-ink" onClick={() => setEditing(true)} title="Click to edit">
+        <span>{card.title}</span>
+        <Pencil className="mt-1.5 size-3.5 shrink-0 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" strokeWidth={1.75} />
+      </h1>
+    );
+  }
+  const commit = async () => {
+    setEditing(false);
+    if (value.trim() && value.trim() !== card.title) await onSave(value.trim());
+    else setValue(card.title);
+  };
+  return (
+    <Input
+      autoFocus
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => void commit()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") void commit();
+        if (e.key === "Escape") {
+          setValue(card.title);
+          setEditing(false);
+        }
+      }}
+      className="h-10 text-[19px] font-semibold tracking-tight"
+      maxLength={200}
+    />
+  );
+}
+
+function DescriptionEditor({ card, handles, onSave }: { card: Card; handles: Map<string, string>; onSave: (d: string) => Promise<unknown> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(card.description);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!editing) setValue(card.description);
+  }, [card.description, editing]);
+  if (editing) {
+    return (
+      <div>
+        <Textarea autoFocus value={value} onChange={(e) => setValue(e.target.value)} rows={8} onKeyDown={(e) => e.key === "Escape" && setEditing(false)} />
+        <div className="mt-2 flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            loading={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                if (value !== card.description) await onSave(value);
+                setEditing(false);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="group relative">
+      {card.description.trim() ? (
+        <Markdown body={card.description} handles={handles} />
+      ) : (
+        <p className="text-[13px] italic text-ink-faint">No details yet.</p>
+      )}
+      <button type="button" onClick={() => setEditing(true)} className="mt-2 inline-flex items-center gap-1 text-[12px] text-ink-faint transition-colors hover:text-ink">
+        <Pencil className="size-3" strokeWidth={1.75} />
+        Edit details
+      </button>
+    </div>
+  );
+}
+
+function ReviewBlock({ card, agentName, approvals, members, onApprove, busy }: { card: Card; agentName: string; approvals: { userId: string; createdAt: string; invalidatedAt: string | null }[]; members: Map<string, User>; onApprove: () => Promise<unknown>; busy: boolean }) {
+  const live = approvals.filter((a) => !a.invalidatedAt);
+  return (
+    <div className="mx-6 mt-4 rounded-card border border-line bg-raised px-4 py-3.5">
+      {live.length > 0 ? (
+        <div className="flex items-center gap-2 text-[13px]">
+          <Check className="size-4 text-ok" strokeWidth={2} />
+          <span className="text-ink">
+            Approved by {members.get(live[0]!.userId)?.name ?? "a member"} {relativeTime(live[0]!.createdAt)}. {agentName} will merge it.
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13.5px] font-medium text-ink">Ready for your review</p>
+            <p className="mt-0.5 text-[12.5px] text-ink-muted">Check the preview. Approving lets {agentName} merge {card.prNumber ? `pull request #${card.prNumber}` : "the change"} and close this card. Ask for changes in a comment instead if it's not right.</p>
+          </div>
+          <Button variant="primary" loading={busy} icon={<Check className="size-4" strokeWidth={2} />} onClick={() => void onApprove()}>
+            Approve
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AttachmentView({ a }: { a: Attachment }) {
+  const url = `/api/attachments/${a.id}`;
+  if (a.mime.startsWith("image/")) {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-control border border-line">
+        <img src={url} alt={a.filename} className="max-h-64 w-auto" loading="lazy" />
+      </a>
+    );
+  }
+  return (
+    <a href={url} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-bg px-2.5 text-[12px] text-ink-muted no-underline hover:text-ink">
+      <FileText className="size-3.5" strokeWidth={1.75} />
+      <span className="max-w-56 truncate">{a.filename}</span>
+      <span className="font-mono text-[10.5px] text-ink-faint">{(a.size / 1024).toFixed(0)} KB</span>
+    </a>
+  );
+}
+
+function CommentList({ comments, members, agentName, handles, meId, cardId }: { comments: Comment[]; members: Map<string, User>; agentName: string; handles: Map<string, string>; meId: string; cardId: string }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const updateComment = useUpdateComment(cardId);
+  if (comments.length === 0) return <p className="text-[13px] text-ink-faint">No comments yet.</p>;
+  return (
+    <ol className="flex flex-col gap-5">
+      {comments.map((c) => {
+        const author = c.authorKind === "agent" ? { name: agentName, avatarUrl: null } : c.authorId ? members.get(c.authorId) : undefined;
+        const mine = c.authorKind === "user" && c.authorId === meId;
+        return (
+          <li key={c.id} className="flex gap-3">
+            <Avatar name={author?.name ?? "Unknown"} url={author?.avatarUrl} size={26} tone={c.authorKind === "agent" ? "agent" : "neutral"} className="mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2 text-[12.5px]">
+                <span className={cx("font-medium", c.authorKind === "agent" ? "text-accent" : "text-ink")}>{author?.name ?? "Unknown"}</span>
+                <span className="text-ink-faint" title={absoluteTime(c.createdAt)}>
+                  {relativeTime(c.createdAt)}
+                </span>
+                {c.editedAt ? <span className="text-ink-faint">edited</span> : null}
+                {mine && editingId !== c.id ? (
+                  <button type="button" className="ml-auto text-ink-faint opacity-0 transition-opacity hover:text-ink [li:hover_&]:opacity-100" onClick={() => setEditingId(c.id)}>
+                    Edit
+                  </button>
+                ) : null}
+              </div>
+              {editingId === c.id ? (
+                <div className="mt-1.5">
+                  <Composer
+                    members={[...members.values()]}
+                    agentName={agentName}
+                    initialBody={c.body}
+                    submitLabel="Save"
+                    allowFiles={false}
+                    autoFocus
+                    onCancel={() => setEditingId(null)}
+                    onSubmit={async (body) => {
+                      await updateComment.mutateAsync({ id: c.id, body });
+                      setEditingId(null);
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="mt-1">
+                  <Markdown body={c.body} handles={handles} />
+                  {c.attachments.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {c.attachments.map((a) => (
+                        <AttachmentView key={a.id} a={a} />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function NewComment({ cardId, members, agentName }: { cardId: string; members: User[]; agentName: string }) {
+  const create = useCreateComment(cardId);
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <Composer members={members} agentName={agentName} onSubmit={(body, files) => create.mutateAsync({ body, files }).then(() => undefined)} />
+    </div>
+  );
+}
+
+const ACTIVITY_LABEL: Record<string, (p: Record<string, unknown>) => string> = {
+  "card.created": () => "created this card",
+  "card.edited": (p) => `edited the ${(p.fields as string[] | undefined)?.join(" and ") ?? "card"}`,
+  "card.moved": (p) => `moved it from ${COLUMN_LABELS[p.from as Column] ?? p.from} to ${COLUMN_LABELS[p.to as Column] ?? p.to}`,
+  "card.approved": () => "approved the change",
+  "comment.posted": () => "commented",
+  "comment.edited": () => "edited a comment",
+  "session.queued": () => "queued a session",
+  "session.started": () => "started a session",
+  "session.succeeded": (p) => `finished a session${p.outcomeSummary ? `: ${p.outcomeSummary as string}` : ""}`,
+  "session.failed": (p) => `session failed${p.outcomeSummary ? `: ${p.outcomeSummary as string}` : ""}`,
+  "session.cancelled": () => "cancelled the session",
+  "session.timed_out": () => "session hit its time limit",
+  "session.cancel_requested": () => "asked to cancel the session",
+};
+
+function Activity({ entries, members, agentName }: { entries: ActivityEntry[]; members: Map<string, User>; agentName: string }) {
+  const [open, setOpen] = useState(false);
+  const visible = entries.filter((e) => e.type !== "comment.posted" && e.type !== "comment.edited");
+  if (visible.length === 0) return null;
+  return (
+    <div className="border-t border-line px-6 py-4">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint transition-colors hover:text-ink">
+        <History className="size-3.5" strokeWidth={1.75} />
+        Activity
+        <span className="font-mono font-normal normal-case tracking-normal">{visible.length}</span>
+        <ChevronDown className={cx("size-3.5 transition-transform", open && "rotate-180")} strokeWidth={1.75} />
+      </button>
+      {open ? (
+        <ol className="mt-3 flex flex-col gap-1.5 text-[12.5px] text-ink-muted">
+          {visible.map((e) => {
+            const who = e.actorKind === "agent" ? agentName : e.actorKind === "system" ? "Cardboard" : e.actorId ? (members.get(e.actorId)?.name ?? "Someone") : "Someone";
+            const label = ACTIVITY_LABEL[e.type]?.(e.payload) ?? e.type;
+            return (
+              <li key={e.id} className="flex gap-2">
+                <span className="w-16 shrink-0 font-mono text-[11px] text-ink-faint" title={absoluteTime(e.createdAt)}>
+                  {relativeTime(e.createdAt)}
+                </span>
+                <span>
+                  <span className={cx(e.actorKind === "agent" ? "text-accent" : "text-ink")}>{who}</span> {label}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+    </div>
+  );
+}

@@ -1,0 +1,110 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { UserPlus } from "lucide-react";
+import type { User } from "@cardboard/shared";
+import { keys, request, useAdminUsers, useMe } from "../../lib/api";
+import { Avatar, Button, Chip, Field, Input, Select, Skeleton } from "../../components/ui";
+import { Dialog } from "../../components/Dialog";
+import { Menu } from "../../components/Menu";
+import { relativeTime } from "../../lib/format";
+import { TabHeader } from "./AdminPage";
+
+const STATUS_TONE = { invited: "info", active: "ok", revoked: "danger" } as const;
+
+export function UsersTab() {
+  const users = useAdminUsers();
+  const me = useMe();
+  const qc = useQueryClient();
+  const [inviting, setInviting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<"member" | "admin">("member");
+  const invite = useMutation({
+    mutationFn: () => request<User>("/admin/users", { method: "POST", body: JSON.stringify({ email, name, role }) }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.adminUsers });
+      setInviting(false);
+      setEmail("");
+      setName("");
+      setRole("member");
+    },
+  });
+  const setStatus = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "revoke" | "reinstate" }) => request(`/admin/users/${id}/${action}`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.adminUsers }),
+  });
+
+  return (
+    <>
+      <TabHeader
+        title="Users"
+        body="Only invited email addresses can sign in. Membership on each board is set from the Boards tab."
+        action={
+          <Button variant="primary" icon={<UserPlus className="size-4" strokeWidth={1.75} />} onClick={() => setInviting(true)}>
+            Invite
+          </Button>
+        }
+      />
+      {users.isPending ? (
+        <Skeleton className="h-40" />
+      ) : (
+        <ul className="divide-y divide-line rounded-card border border-line bg-surface">
+          {users.data?.map((u) => (
+            <li key={u.id} className="flex items-center gap-3 px-4 py-3">
+              <Avatar name={u.name} url={u.avatarUrl} size={30} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-medium text-ink">
+                  {u.name} <span className="font-mono text-[11.5px] font-normal text-ink-faint">@{u.handle}</span>
+                </p>
+                <p className="truncate text-[12.5px] text-ink-muted">{u.email}</p>
+              </div>
+              {u.role === "admin" ? <Chip tone="accent">Admin</Chip> : null}
+              <Chip tone={STATUS_TONE[u.status]}>{u.status}</Chip>
+              <span className="w-16 text-right font-mono text-[11px] text-ink-faint">{relativeTime(u.createdAt)}</span>
+              <Menu
+                align="right"
+                trigger={<Button size="sm" variant="ghost">Manage</Button>}
+                items={
+                  u.status === "revoked"
+                    ? [{ label: "Reinstate", onSelect: () => setStatus.mutate({ id: u.id, action: "reinstate" }) }]
+                    : [{ label: "Revoke access", danger: true, disabled: u.id === me.data?.user.id, onSelect: () => setStatus.mutate({ id: u.id, action: "revoke" }) }]
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <Dialog open={inviting} onClose={() => setInviting(false)} title="Invite a user">
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            invite.mutate();
+          }}
+        >
+          <Field label="Email" hint="They sign in with this address. The @handle is derived from it.">
+            <Input type="email" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" />
+          </Field>
+          <Field label="Name">
+            <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          </Field>
+          <Field label="Role">
+            <Select value={role} onChange={(e) => setRole(e.target.value as "member" | "admin")}>
+              <option value="member">Member (per-board access)</option>
+              <option value="admin">Admin (everything)</option>
+            </Select>
+          </Field>
+          {invite.isError ? <p className="text-[13px] text-danger">{invite.error.message}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setInviting(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={invite.isPending}>
+              Send invitation
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+    </>
+  );
+}

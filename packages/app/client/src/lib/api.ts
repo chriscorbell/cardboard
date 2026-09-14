@@ -1,0 +1,172 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  Board,
+  BoardView,
+  Card,
+  CardDetail,
+  Comment,
+  CreateCardInput,
+  Me,
+  MoveCardInput,
+  SessionSummary,
+  Settings,
+  UpdateCardInput,
+  User,
+} from "@cardboard/shared";
+
+let tokenProvider: () => Promise<string | null> = async () => null;
+export function setTokenProvider(fn: () => Promise<string | null>) {
+  tokenProvider = fn;
+}
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    public data: unknown,
+  ) {
+    super(code);
+  }
+}
+
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = await tokenProvider();
+  const headers = new Headers(init.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  const res = await fetch(`/api${path}`, { ...init, headers });
+  if (res.status === 204) return undefined as T;
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new ApiError(res.status, data.error ?? `http_${res.status}`, data);
+  return data as T;
+}
+
+export const keys = {
+  me: ["me"] as const,
+  boards: ["boards"] as const,
+  board: (slug: string) => ["board", slug] as const,
+  card: (id: string) => ["card", id] as const,
+  adminUsers: ["admin", "users"] as const,
+  adminBoards: ["admin", "boards"] as const,
+  adminSettings: ["admin", "settings"] as const,
+  adminSessions: ["admin", "sessions"] as const,
+};
+
+export function useMe() {
+  return useQuery({ queryKey: keys.me, queryFn: () => request<Me>("/me"), staleTime: 60_000, retry: false });
+}
+export function useBoards() {
+  return useQuery({ queryKey: keys.boards, queryFn: () => request<Board[]>("/boards") });
+}
+export function useBoard(slug: string) {
+  return useQuery({ queryKey: keys.board(slug), queryFn: () => request<BoardView>(`/boards/${slug}`) });
+}
+export function useCard(id: string | null) {
+  return useQuery({ queryKey: keys.card(id ?? ""), queryFn: () => request<CardDetail>(`/cards/${id}`), enabled: Boolean(id) });
+}
+
+export function useCreateCard(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateCardInput) => request<Card>(`/boards/${slug}/cards`, { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: (card) => upsertCardInBoard(qc, slug, card),
+  });
+}
+
+export function useUpdateCard(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: UpdateCardInput & { id: string }) => request<Card>(`/cards/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+    onSuccess: (card) => {
+      upsertCardInBoard(qc, slug, card);
+      qc.setQueryData<CardDetail>(keys.card(card.id), (d) => (d ? { ...d, card } : d));
+    },
+    onError: (err, vars) => {
+      if (err instanceof ApiError && err.status === 409) void qc.invalidateQueries({ queryKey: keys.card(vars.id) });
+    },
+  });
+}
+
+export function useMoveCard(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: MoveCardInput & { id: string }) => request<Card>(`/cards/${id}/move`, { method: "POST", body: JSON.stringify(input) }),
+    onMutate: async ({ id, column, position }) => {
+      await qc.cancelQueries({ queryKey: keys.board(slug) });
+      const prev = qc.getQueryData<BoardView>(keys.board(slug));
+      qc.setQueryData<BoardView>(keys.board(slug), (v) => (v ? { ...v, cards: v.cards.map((c) => (c.id === id ? { ...c, column, position } : c)) } : v));
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.board(slug), ctx.prev);
+      void qc.invalidateQueries({ queryKey: keys.board(slug) });
+    },
+    onSuccess: (card) => upsertCardInBoard(qc, slug, card),
+  });
+}
+
+export function useApproveCard(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => request(`/cards/${id}/approve`, { method: "POST" }),
+    onSuccess: (_r, id) => {
+      void qc.invalidateQueries({ queryKey: keys.card(id) });
+      void qc.invalidateQueries({ queryKey: keys.board(slug) });
+    },
+  });
+}
+
+export function useCreateComment(cardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ body, files }: { body: string; files: File[] }) => {
+      const comment = await request<Comment>(`/cards/${cardId}/comments`, { method: "POST", body: JSON.stringify({ body }) });
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        await request(`/comments/${comment.id}/attachments`, { method: "POST", body: fd });
+      }
+      return comment;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.card(cardId) }),
+  });
+}
+
+export function useUpdateComment(cardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) => request<Comment>(`/comments/${id}`, { method: "PATCH", body: JSON.stringify({ body }) }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.card(cardId) }),
+  });
+}
+
+export function upsertCardInBoard(qc: ReturnType<typeof useQueryClient>, slug: string, card: Card) {
+  qc.setQueryData<BoardView>(keys.board(slug), (v) => {
+    if (!v) return v;
+    const exists = v.cards.some((c) => c.id === card.id);
+    return { ...v, cards: exists ? v.cards.map((c) => (c.id === card.id ? card : c)) : [...v.cards, card] };
+  });
+}
+
+export function upsertSessionInBoard(qc: ReturnType<typeof useQueryClient>, slug: string, session: SessionSummary) {
+  qc.setQueryData<BoardView>(keys.board(slug), (v) => {
+    if (!v) return v;
+    const exists = v.sessions.some((s) => s.id === session.id);
+    return { ...v, sessions: exists ? v.sessions.map((s) => (s.id === session.id ? session : s)) : [session, ...v.sessions] };
+  });
+}
+
+// ---- admin ----
+export type AdminBoard = Board & { memberIds: string[] };
+export function useAdminUsers() {
+  return useQuery({ queryKey: keys.adminUsers, queryFn: () => request<User[]>("/admin/users") });
+}
+export function useAdminBoards() {
+  return useQuery({ queryKey: keys.adminBoards, queryFn: () => request<AdminBoard[]>("/admin/boards") });
+}
+export function useAdminSettings() {
+  return useQuery({ queryKey: keys.adminSettings, queryFn: () => request<Settings>("/admin/settings") });
+}
+export function useAdminSessions() {
+  return useQuery({ queryKey: keys.adminSessions, queryFn: () => request<(SessionSummary & { boardId: string })[]>("/admin/sessions"), refetchInterval: 10_000 });
+}
