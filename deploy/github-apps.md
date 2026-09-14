@@ -18,6 +18,13 @@ Twice, at https://github.com/settings/apps/new (once per app):
 | Repository permissions | Contents: Read and write. Pull requests: Read and write. Metadata: Read. | Same |
 | Where can this app be installed | Any account | Any account |
 
+Adding a permission here does not widen what a Session can do. Cardboard mints each Session token
+with a fixed `{ contents: write, pull_requests: write, metadata: read }` (`mintInstallationToken`
+in `packages/app/server/src/services/github.ts`), and an installation token can only narrow the
+installation's permissions, never widen them. In particular no Session can push a change to
+`.github/workflows/`, because GitHub requires `workflows: write` for that; such an edit is a job
+for a human on the default branch.
+
 "Any account" is required because installation is always performed by a repository's owner: a
 client installs the apps on their own repository, which "Only on this account" would prevent. The
 apps stay unlisted; only someone with the install link can add them.

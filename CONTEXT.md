@@ -83,7 +83,7 @@ A temporary deployment of a Card's branch that Members use to review and test th
 _Avoid_: Staging, demo, environment
 
 **Approval**:
-A Member's recorded sign-off, given through the Approve control on a Card in Review, that authorizes the Agent to merge the Card's pull request. A Comment is never an Approval.
+A Member's recorded sign-off, given through the Approve control on a Card in Review, bound to the pull request revision the Member saw. Cardboard, not a Session, performs the merge it authorizes. A later change to the pull request voids it. A Comment is never an Approval.
 _Avoid_: Sign-off, LGTM, acceptance
 
 **Pending re-run**:
