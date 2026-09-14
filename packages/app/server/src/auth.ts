@@ -1,0 +1,87 @@
+import type { Context, MiddlewareHandler } from "hono";
+import { eq } from "drizzle-orm";
+import type { User } from "@cardboard/shared";
+import { db, schema } from "./db/index.js";
+import { env } from "./env.js";
+import { activateFromClerk, toUser } from "./services/users.js";
+
+export type AuthVariables = { user: User };
+export type AppContext = Context<{ Variables: AuthVariables }>;
+
+let clerk: { verifyToken: (t: string) => Promise<{ sub: string } | null>; fetchUser: (id: string) => Promise<{ email: string; name: string | null; avatarUrl: string | null }> } | null = null;
+
+async function getClerk() {
+  if (clerk) return clerk;
+  const mod = await import("@clerk/backend");
+  const client = mod.createClerkClient({ secretKey: env.clerkSecretKey, publishableKey: env.clerkPublishableKey });
+  clerk = {
+    async verifyToken(token) {
+      try {
+        const payload = await mod.verifyToken(token, { secretKey: env.clerkSecretKey });
+        return { sub: payload.sub };
+      } catch {
+        return null;
+      }
+    },
+    async fetchUser(id) {
+      const u = await client.users.getUser(id);
+      const primary = u.emailAddresses.find((e) => e.id === u.primaryEmailAddressId) ?? u.emailAddresses[0];
+      return {
+        email: primary?.emailAddress ?? "",
+        name: [u.firstName, u.lastName].filter(Boolean).join(" ") || null,
+        avatarUrl: u.imageUrl ?? null,
+      };
+    },
+  };
+  return clerk;
+}
+
+const clerkCache = new Map<string, { user: User | null; expires: number }>();
+
+export class NotInvitedError extends Error {}
+
+async function resolveUser(c: Context): Promise<User | null> {
+  if (env.authMode === "dev") {
+    // Dev mode: every request is the seeded admin, or a user chosen with the X-Dev-User header (email).
+    const email = c.req.header("x-dev-user");
+    const row = email
+      ? await db.select().from(schema.users).where(eq(schema.users.email, email.toLowerCase())).get()
+      : await db.select().from(schema.users).where(eq(schema.users.role, "admin")).get();
+    return row ? toUser(row) : null;
+  }
+  const header = c.req.header("authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return null;
+  const k = await getClerk();
+  const verified = await k.verifyToken(token);
+  if (!verified) return null;
+  const cached = clerkCache.get(verified.sub);
+  if (cached && cached.expires > Date.now()) {
+    if (!cached.user) throw new NotInvitedError();
+    return cached.user;
+  }
+  const profile = await k.fetchUser(verified.sub);
+  const user = await activateFromClerk({ clerkUserId: verified.sub, ...profile });
+  clerkCache.set(verified.sub, { user, expires: Date.now() + 5 * 60_000 });
+  if (!user) throw new NotInvitedError();
+  return user;
+}
+
+export const requireUser: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
+  let user: User | null;
+  try {
+    user = await resolveUser(c);
+  } catch (err) {
+    if (err instanceof NotInvitedError) return c.json({ error: "not_invited" }, 403);
+    throw err;
+  }
+  if (!user) return c.json({ error: "unauthenticated" }, 401);
+  if (user.status === "revoked") return c.json({ error: "not_invited" }, 403);
+  c.set("user", user);
+  await next();
+};
+
+export const requireAdmin: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
+  if (c.get("user").role !== "admin") return c.json({ error: "forbidden" }, 403);
+  await next();
+};

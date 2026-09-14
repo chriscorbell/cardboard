@@ -1,0 +1,123 @@
+import { eq, inArray } from "drizzle-orm";
+import type { User } from "@cardboard/shared";
+import { db, schema } from "../db/index.js";
+import { newId } from "../ids.js";
+
+export function toUser(row: typeof schema.users.$inferSelect): User {
+  return {
+    id: row.id,
+    email: row.email,
+    handle: row.handle,
+    name: row.name,
+    avatarUrl: row.avatarUrl,
+    role: row.role,
+    status: row.status,
+    createdAt: row.createdAt,
+  };
+}
+
+export async function listUsers(): Promise<User[]> {
+  const rows = await db.select().from(schema.users).orderBy(schema.users.createdAt);
+  return rows.map(toUser);
+}
+
+export async function getUser(id: string): Promise<User | null> {
+  const row = await db.select().from(schema.users).where(eq(schema.users.id, id)).get();
+  return row ? toUser(row) : null;
+}
+
+export async function getUsersByIds(ids: string[]): Promise<Map<string, User>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db.select().from(schema.users).where(inArray(schema.users.id, ids));
+  return new Map(rows.map((r) => [r.id, toUser(r)]));
+}
+
+export async function findUserByEmail(email: string): Promise<User | null> {
+  const row = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, email.toLowerCase()))
+    .get();
+  return row ? toUser(row) : null;
+}
+
+export async function findUsersByHandles(handles: string[]): Promise<User[]> {
+  if (handles.length === 0) return [];
+  const rows = await db.select().from(schema.users).where(inArray(schema.users.handle, handles));
+  return rows.map(toUser);
+}
+
+async function uniqueHandle(email: string): Promise<string> {
+  const base =
+    email
+      .split("@")[0]!
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, "")
+      .slice(0, 30) || "user";
+  let candidate = base;
+  for (let i = 2; ; i++) {
+    const clash = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.handle, candidate))
+      .get();
+    if (!clash) return candidate;
+    candidate = `${base}${i}`;
+  }
+}
+
+export async function inviteUser(input: {
+  email: string;
+  name: string;
+  role: "admin" | "member";
+}): Promise<User> {
+  const email = input.email.toLowerCase();
+  const existing = await findUserByEmail(email);
+  if (existing) {
+    if (existing.status === "revoked") {
+      await db.update(schema.users).set({ status: "invited" }).where(eq(schema.users.id, existing.id));
+      return { ...existing, status: "invited" };
+    }
+    return existing;
+  }
+  const id = newId();
+  await db.insert(schema.users).values({
+    id,
+    email,
+    handle: await uniqueHandle(email),
+    name: input.name,
+    role: input.role,
+    status: "invited",
+  });
+  return (await getUser(id))!;
+}
+
+export async function setUserStatus(id: string, status: "invited" | "active" | "revoked"): Promise<void> {
+  await db.update(schema.users).set({ status }).where(eq(schema.users.id, id));
+}
+
+export async function activateFromClerk(input: {
+  clerkUserId: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+}): Promise<User | null> {
+  const byClerk = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.clerkUserId, input.clerkUserId))
+    .get();
+  if (byClerk) return byClerk.status === "revoked" ? null : toUser(byClerk);
+  const invited = await findUserByEmail(input.email);
+  if (!invited || invited.status === "revoked") return null;
+  await db
+    .update(schema.users)
+    .set({
+      clerkUserId: input.clerkUserId,
+      status: "active",
+      avatarUrl: input.avatarUrl ?? invited.avatarUrl,
+      name: invited.name || input.name || invited.email,
+    })
+    .where(eq(schema.users.id, invited.id));
+  return getUser(invited.id);
+}

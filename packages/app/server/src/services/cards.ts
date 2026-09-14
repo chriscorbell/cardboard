@@ -1,0 +1,241 @@
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import type { Card, Column, Priority, SessionSummary } from "@cardboard/shared";
+import { db, schema } from "../db/index.js";
+import { newId } from "../ids.js";
+import { publish } from "./realtime.js";
+import { recordEvent, type Actor } from "./events.js";
+import { enqueueTrigger } from "./orchestrator.js";
+
+export function toSessionSummary(row: typeof schema.sessions.$inferSelect): SessionSummary {
+  return {
+    id: row.id,
+    kind: row.kind,
+    status: row.status,
+    provider: row.provider,
+    intent: row.intent,
+    branch: row.branch,
+    cardId: row.cardId,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    outcomeSummary: row.outcomeSummary,
+    createdAt: row.createdAt,
+  };
+}
+
+async function hydrate(rows: (typeof schema.cards.$inferSelect)[]): Promise<Card[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const counts = await db
+    .select({ cardId: schema.comments.cardId, n: sql<number>`count(*)` })
+    .from(schema.comments)
+    .where(inArray(schema.comments.cardId, ids))
+    .groupBy(schema.comments.cardId);
+  const countMap = new Map(counts.map((c) => [c.cardId, Number(c.n)]));
+  const active = await db
+    .select()
+    .from(schema.sessions)
+    .where(
+      and(
+        inArray(schema.sessions.cardId, ids),
+        inArray(schema.sessions.status, ["queued", "starting", "running"]),
+      ),
+    );
+  const activeMap = new Map(active.map((s) => [s.cardId!, toSessionSummary(s)]));
+  return rows.map((r) => ({
+    id: r.id,
+    boardId: r.boardId,
+    title: r.title,
+    description: r.description,
+    priority: r.priority,
+    column: r.column,
+    position: r.position,
+    creatorKind: r.creatorKind,
+    creatorId: r.creatorId,
+    parentCardId: r.parentCardId,
+    revision: r.revision,
+    branch: r.branch,
+    prUrl: r.prUrl,
+    prNumber: r.prNumber,
+    previewUrl: r.previewUrl,
+    commentCount: countMap.get(r.id) ?? 0,
+    activeSession: activeMap.get(r.id) ?? null,
+    pendingRerun: r.pendingRerun,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
+}
+
+export async function listCards(boardId: string): Promise<Card[]> {
+  const rows = await db
+    .select()
+    .from(schema.cards)
+    .where(eq(schema.cards.boardId, boardId))
+    .orderBy(asc(schema.cards.position), asc(schema.cards.createdAt));
+  return hydrate(rows);
+}
+
+export async function getCard(id: string): Promise<Card | null> {
+  const row = await db.select().from(schema.cards).where(eq(schema.cards.id, id)).get();
+  if (!row) return null;
+  return (await hydrate([row]))[0]!;
+}
+
+export async function listChildren(cardId: string): Promise<Card[]> {
+  const rows = await db
+    .select()
+    .from(schema.cards)
+    .where(eq(schema.cards.parentCardId, cardId))
+    .orderBy(asc(schema.cards.createdAt));
+  return hydrate(rows);
+}
+
+async function nextPosition(boardId: string, column: Column): Promise<number> {
+  const last = await db
+    .select({ position: schema.cards.position })
+    .from(schema.cards)
+    .where(and(eq(schema.cards.boardId, boardId), eq(schema.cards.column, column)))
+    .orderBy(desc(schema.cards.position))
+    .limit(1)
+    .get();
+  return (last?.position ?? 0) + 1000;
+}
+
+export class ConflictError extends Error {
+  status = 409;
+}
+
+export async function createCard(input: {
+  boardId: string;
+  title: string;
+  description: string;
+  priority: Priority;
+  column: Column;
+  actor: Actor;
+  parentCardId?: string | null;
+  silent?: boolean;
+}): Promise<Card> {
+  const id = newId();
+  await db.insert(schema.cards).values({
+    id,
+    boardId: input.boardId,
+    title: input.title,
+    description: input.description,
+    priority: input.priority,
+    column: input.column,
+    position: await nextPosition(input.boardId, input.column),
+    creatorKind: input.actor.kind,
+    creatorId: input.actor.id,
+    parentCardId: input.parentCardId ?? null,
+  });
+  const card = (await getCard(id))!;
+  await recordEvent({
+    boardId: card.boardId,
+    cardId: card.id,
+    actor: input.actor,
+    type: "card.created",
+    payload: { column: card.column },
+  });
+  publish(card.boardId, { type: "card.upserted", card });
+  if (input.actor.kind === "user" && !input.silent) {
+    await enqueueTrigger({ card, kind: "card_created", actorUserId: input.actor.id, payload: {} });
+  }
+  return card;
+}
+
+export async function updateCard(
+  id: string,
+  input: {
+    title?: string;
+    description?: string;
+    priority?: Priority;
+    revision: number;
+    actor: Actor;
+    silent?: boolean;
+  },
+): Promise<Card> {
+  const current = await getCard(id);
+  if (!current) throw new Error("card not found");
+  if (current.revision !== input.revision) throw new ConflictError("card changed since you loaded it");
+  const changed: Record<string, unknown> = {};
+  if (input.title !== undefined && input.title !== current.title) changed.title = input.title;
+  if (input.description !== undefined && input.description !== current.description)
+    changed.description = input.description;
+  if (input.priority !== undefined && input.priority !== current.priority) changed.priority = input.priority;
+  if (Object.keys(changed).length === 0) return current;
+  await db
+    .update(schema.cards)
+    .set({ ...changed, revision: current.revision + 1, updatedAt: new Date().toISOString() })
+    .where(eq(schema.cards.id, id));
+  const card = (await getCard(id))!;
+  await recordEvent({
+    boardId: card.boardId,
+    cardId: card.id,
+    actor: input.actor,
+    type: "card.edited",
+    payload: { fields: Object.keys(changed) },
+  });
+  publish(card.boardId, { type: "card.upserted", card });
+  // Priority alone is a signal to the next Session, not a reason to start one.
+  const substantive = "title" in changed || "description" in changed;
+  if (input.actor.kind === "user" && substantive && !input.silent) {
+    await enqueueTrigger({
+      card,
+      kind: "card_edited",
+      actorUserId: input.actor.id,
+      payload: { fields: Object.keys(changed) },
+    });
+  }
+  return card;
+}
+
+export async function moveCard(
+  id: string,
+  input: { column: Column; position: number; revision: number; actor: Actor; silent?: boolean },
+): Promise<Card> {
+  const current = await getCard(id);
+  if (!current) throw new Error("card not found");
+  if (current.revision !== input.revision) throw new ConflictError("card changed since you loaded it");
+  const columnChanged = current.column !== input.column;
+  await db
+    .update(schema.cards)
+    .set({
+      column: input.column,
+      position: input.position,
+      revision: current.revision + 1,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(schema.cards.id, id));
+  const card = (await getCard(id))!;
+  if (columnChanged) {
+    await recordEvent({
+      boardId: card.boardId,
+      cardId: card.id,
+      actor: input.actor,
+      type: "card.moved",
+      payload: { from: current.column, to: input.column },
+    });
+  }
+  publish(card.boardId, { type: "card.upserted", card });
+  if (columnChanged && input.actor.kind === "user" && !input.silent) {
+    await enqueueTrigger({
+      card,
+      kind: "card_moved",
+      actorUserId: input.actor.id,
+      payload: { from: current.column, to: input.column },
+    });
+  }
+  return card;
+}
+
+export async function setCardWorkState(
+  id: string,
+  patch: { branch?: string | null; prUrl?: string | null; prNumber?: number | null; previewUrl?: string | null },
+): Promise<Card> {
+  await db
+    .update(schema.cards)
+    .set({ ...patch, updatedAt: new Date().toISOString() })
+    .where(eq(schema.cards.id, id));
+  const card = (await getCard(id))!;
+  publish(card.boardId, { type: "card.upserted", card });
+  return card;
+}

@@ -1,0 +1,54 @@
+import { eq } from "drizzle-orm";
+import type { Settings, AgentProfile } from "@cardboard/shared";
+import { db, schema } from "../db/index.js";
+
+const DEFAULTS: Settings = {
+  agentName: "Milo",
+  agentAvatarUrl: null,
+  globalMaxConcurrentSessions: 4,
+  sessionWallClockMinutes: 45,
+};
+
+export async function getSettings(): Promise<Settings> {
+  const rows = await db.select().from(schema.settings);
+  const out: Settings = { ...DEFAULTS };
+  for (const r of rows) {
+    switch (r.key) {
+      case "agentName":
+        out.agentName = r.value;
+        break;
+      case "agentAvatarUrl":
+        out.agentAvatarUrl = r.value || null;
+        break;
+      case "globalMaxConcurrentSessions":
+        out.globalMaxConcurrentSessions = Number(r.value);
+        break;
+      case "sessionWallClockMinutes":
+        out.sessionWallClockMinutes = Number(r.value);
+        break;
+    }
+  }
+  return out;
+}
+
+export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    const str = value === null ? "" : String(value);
+    await db
+      .insert(schema.settings)
+      .values({ key, value: str })
+      .onConflictDoUpdate({ target: schema.settings.key, set: { value: str } });
+  }
+  return getSettings();
+}
+
+export async function getAgentProfile(): Promise<AgentProfile> {
+  const s = await getSettings();
+  return { name: s.agentName, avatarUrl: s.agentAvatarUrl };
+}
+
+export async function getSettingValue(key: string): Promise<string | null> {
+  const row = await db.select().from(schema.settings).where(eq(schema.settings.key, key)).get();
+  return row?.value ?? null;
+}
