@@ -7,3 +7,4 @@ One bullet per lesson, with a relative link and the symptom or task that should 
 Threshold: 12 entries. Past it, the bounded review in [maintenance](../maintenance.md) samples this category first.
 
 - [pnpm 11 build approvals](pnpm-11-build-approvals.md): read when `pnpm install` or `pnpm exec` fails with `ERR_PNPM_IGNORED_BUILDS`.
+- [A Session cannot push a change to `.github/workflows/`](session-token-cannot-push-workflow-files.md): read when a push is refused for want of `workflows` permission, or before planning a workflow-file edit.
