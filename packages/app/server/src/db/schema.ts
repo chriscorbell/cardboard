@@ -174,6 +174,25 @@ export const events = sqliteTable(
   (t) => [index("events_card_idx").on(t.cardId), index("events_board_idx").on(t.boardId)],
 );
 
+// One row per thing that also sends the user an email, kept so the bell can show it in the app.
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    boardId: text("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+    cardId: text("card_id").notNull().references(() => cards.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["mention", "card_moved"] }).notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    actorName: text("actor_name").notNull(),
+    actorAvatarUrl: text("actor_avatar_url"),
+    readAt: text("read_at"),
+    createdAt: text("created_at").notNull().$defaultFn(now),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
