@@ -6,10 +6,10 @@ import { AgentTab } from "./AgentTab";
 import { SessionsTab } from "./SessionsTab";
 
 const TABS = [
-  { to: "users", label: "Users" },
-  { to: "boards", label: "Boards" },
-  { to: "agent", label: "Agent" },
-  { to: "sessions", label: "Sessions" },
+  { to: "/admin/users", label: "Users" },
+  { to: "/admin/boards", label: "Boards" },
+  { to: "/admin/agent", label: "Agent" },
+  { to: "/admin/sessions", label: "Sessions" },
 ];
 
 export function AdminPage() {
