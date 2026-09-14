@@ -1,16 +1,13 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { extractMentionHandles, type Attachment, type Comment } from "@cardboard/shared";
 import { db, schema } from "../db/index.js";
-import { env } from "../env.js";
 import { newId } from "../ids.js";
 import { publish } from "./realtime.js";
 import { recordEvent, type Actor } from "./events.js";
 import { enqueueTrigger } from "./orchestrator.js";
 import { getCard } from "./cards.js";
-import { findUsersByHandles, getUser } from "./users.js";
-import { getBoardById } from "./boards.js";
-import { queueEmail } from "./email.js";
-import { getAgentProfile } from "./settings.js";
+import { findUsersByHandles } from "./users.js";
+import { notifyMentions } from "./notifications.js";
 
 function toAttachment(row: typeof schema.attachments.$inferSelect): Attachment {
   return {
@@ -70,31 +67,6 @@ async function syncMentions(comment: Comment, actor: Actor): Promise<string[]> {
   return fresh.map((u) => u.id);
 }
 
-async function notifyMentions(comment: Comment, userIds: string[], actor: Actor): Promise<void> {
-  if (userIds.length === 0) return;
-  const card = await getCard(comment.cardId);
-  if (!card) return;
-  const board = await getBoardById(card.boardId);
-  if (!board) return;
-  const authorName =
-    actor.kind === "user" && actor.id ? ((await getUser(actor.id))?.name ?? "Someone") : (await getAgentProfile()).name;
-  const url = `${env.publicUrl}/b/${board.slug}/c/${card.id}`;
-  for (const userId of userIds) {
-    await queueEmail({
-      toUserId: userId,
-      subject: `${authorName} mentioned you on "${card.title}"`,
-      heading: `${authorName} mentioned you on ${card.title}`,
-      body: comment.body,
-      linkUrl: url,
-      linkLabel: "Open the card",
-    });
-    await db
-      .update(schema.mentions)
-      .set({ notifiedAt: new Date().toISOString() })
-      .where(eq(schema.mentions.commentId, comment.id));
-  }
-}
-
 export async function createComment(input: {
   cardId: string;
   body: string;
@@ -125,7 +97,7 @@ export async function createComment(input: {
   });
   publish(card.boardId, { type: "comment.upserted", comment });
   publish(card.boardId, { type: "card.upserted", card: (await getCard(card.id))! });
-  await notifyMentions(comment, newlyMentioned, input.actor);
+  await notifyMentions(card, comment, newlyMentioned, input.actor);
   if (input.actor.kind === "user" && !input.silent) {
     await enqueueTrigger({ card, kind: "comment_posted", actorUserId: input.actor.id, payload: { commentId: id } });
   }
@@ -147,7 +119,7 @@ export async function updateComment(id: string, input: { body: string; actor: Ac
   const card = (await getCard(comment.cardId))!;
   await recordEvent({ boardId: card.boardId, cardId: card.id, actor: input.actor, type: "comment.edited", payload: { commentId: id } });
   publish(card.boardId, { type: "comment.upserted", comment });
-  await notifyMentions(comment, newlyMentioned, input.actor);
+  await notifyMentions(card, comment, newlyMentioned, input.actor);
   if (input.actor.kind === "user") {
     await enqueueTrigger({ card, kind: "comment_edited", actorUserId: input.actor.id, payload: { commentId: id } });
   }
