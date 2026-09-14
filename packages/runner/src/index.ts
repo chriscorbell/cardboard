@@ -4,6 +4,7 @@ import Docker from "dockerode";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
+import { readLogSlice } from "./logs.js";
 
 // The runner is the only process with the Docker socket. It knows how to do exactly two things:
 // run a Session container from an approved image with fixed limits, and stop or remove one.
@@ -178,6 +179,13 @@ app.delete("/sessions/:id", async (c) => {
   await container.stop({ t: 10 }).catch(() => {});
   await container.remove({ force: true }).catch(() => {});
   return c.json({ ok: true });
+});
+
+// The container log is the Session's transcript. The app polls this with the offset it last saw
+// and renders what comes back; the runner does no parsing.
+app.get("/sessions/:id/log", (c) => {
+  const offset = Number(c.req.query("offset") ?? "0");
+  return c.json(readLogSlice(env.logDir, c.req.param("id"), Number.isFinite(offset) ? offset : 0));
 });
 
 app.get("/sessions", async (c) => {

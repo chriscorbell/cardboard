@@ -57,7 +57,9 @@ Overlapping intents on the Ledger do not block each other. A Session that sees a
 
 A sweep Session holds no Claim, may move Cards and Comment, and never opens pull requests. It runs nightly at 03:00 minicore local time, waits up to one hour for card Sessions on the Board to finish, and counts against the global cap only.
 
-Members see the status indicator and Comments. The Admin can also cancel a Session from the Card. Cardboard stores per Session its status, timings, Provider, outcome summary, and the Comments it posted. Raw logs are written as files on the data bind mount, kept 14 days, and read over SSH only. No transcripts or tool calls appear in the UI.
+Members see the status indicator and Comments. The Admin can also cancel a Session from the Card. Cardboard stores per Session its status, timings, Provider, outcome summary, and the Comments it posted. Raw logs are written as files on the runner's bind mount and kept 14 days; the database never holds a transcript.
+
+The Admin, and only the Admin, can read a Session's transcript: expanding a run in the admin panel tails that log file through the runner and renders it as the agent's messages, tool calls, and results. A running Session is followed live. The provider CLI is therefore run in a streaming output mode, so the log fills as the work happens rather than at exit. Nothing is shown to Members, and nothing is redacted: a transcript carries whatever the agent printed, so it is admin-only for the same reason the log file is.
 
 ## Review, Approval, and merge
 
