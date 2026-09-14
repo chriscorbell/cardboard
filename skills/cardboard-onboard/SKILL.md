@@ -43,7 +43,7 @@ Done when: the board's settings dialog in Cardboard admin shows both apps as ins
 
 ## 4. Protect the default branch with the `cardboard` ruleset
 
-The ruleset requires a pull request with one approval and lists the merge app as the only bypass actor, so a Session's token cannot merge. Create it with the API from [ruleset.json](ruleset.json), which already carries the merge app's actor id:
+The ruleset requires a pull request with one approval. Its bypass actors are the merge app and repository admins, so a Session's token cannot merge while the owner keeps pushing directly. Create it with the API from [ruleset.json](ruleset.json), which already carries the merge app's actor id:
 
 ```bash
 gh api -X POST "/repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/rulesets" --input ~/.claude/skills/cardboard-onboard/ruleset.json
