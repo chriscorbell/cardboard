@@ -46,5 +46,11 @@ The stack runs on minicore from `~/docker/stacks/cardboard` (compose committed t
 
 Two real Sessions ran on minicore against a Sandbox board with no repository: Claude Code started in the agent container in about 15 s, called the MCP tools (ledger, board, card, announce, comment, move), and exited cleanly. The runner's exit report reaches the app (internal routes are registered before the user API). Resend delivered a mention email from `milo@cardboard.xode.cc` after the sending domain was changed to the verified `cardboard.xode.cc`. Boot reconciliation against the runner inventory exists but has not been exercised by a real restart mid-Session.
 
-Next action: a Session against a real repository, which needs the GitHub App and token minting (design-review finding 1 decides the merge authority first). Then invite the first member.
+## Full loop with GitHub verified 2026-09-14
+
+On `chriscorbell/cardboard-sandbox` with both GitHub Apps installed and the `cardboard` ruleset active: a clarification reply triggered a Session that branched, edited, ran `check.sh`, pushed with the Sessions-app token, opened PR #1 with `gh` (author `app/cardboard-sessions`), recorded it on the card, and moved the card to Review. Approve in the UI merged PR #1 through the Merge app (`mergedBy app/cardboard-merge`, squash, SHA precondition), deleted the branch, moved the card to Done, and commented. Per-board model (`opus`) and reasoning (`high`) reached the container as `CARDBOARD_MODEL` and `CARDBOARD_REASONING`; whether Claude Code honours the effort variable is still unobserved.
+
+Remaining before a client board: design-review findings 3 (child-card dispatch), 5 (preview cookie scope) and 6 (network isolation between workloads and the runner); runner-hosted previews; a real run of the nightly sweep; Codex through the egress proxy. Onboarding steps for a new repository live in `skills/cardboard-onboard`.
+
+Next action: decide findings 3, 5, and 6 with the user, then onboard the first real project with the skill.
 Close when: the stack runs on minicore behind `cardboard.xode.cc` and one real Session completes against a test repository.
