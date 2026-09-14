@@ -32,6 +32,7 @@ if (fs.existsSync(path.join(clientDir, "index.html"))) {
     .readFileSync(path.join(clientDir, "index.html"), "utf8")
     .replace("<!--cardboard-config-->", `<script>window.__CARDBOARD_CONFIG__=${runtimeConfig}</script>`);
   app.use("/assets/*", serveStatic({ root: path.relative(process.cwd(), clientDir) }));
+  app.use("/brand/*", serveStatic({ root: path.relative(process.cwd(), clientDir) }));
   app.get("*", async (c) => {
     if (c.req.path.startsWith("/api") || c.req.path.startsWith("/mcp")) return c.notFound();
     return c.html(indexHtml);

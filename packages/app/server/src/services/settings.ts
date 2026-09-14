@@ -4,7 +4,7 @@ import { db, schema } from "../db/index.js";
 
 const DEFAULTS: Settings = {
   agentName: "Milo",
-  agentAvatarUrl: null,
+  agentAvatarUrl: "/brand/milo.png",
   globalMaxConcurrentSessions: 4,
   sessionWallClockMinutes: 45,
 };

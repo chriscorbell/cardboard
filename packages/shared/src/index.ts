@@ -249,7 +249,11 @@ export const boardMembersSchema = z.object({ userIds: z.array(z.string()) });
 
 export const settingsSchema = z.object({
   agentName: z.string().trim().min(1).max(40).optional(),
-  agentAvatarUrl: z.string().url().nullable().optional(),
+  agentAvatarUrl: z
+    .string()
+    .refine((v) => v.startsWith("/") || /^https?:\/\//.test(v), "an absolute URL or a path on this site")
+    .nullable()
+    .optional(),
   globalMaxConcurrentSessions: z.number().int().min(1).max(20).optional(),
   sessionWallClockMinutes: z.number().int().min(5).max(240).optional(),
 });

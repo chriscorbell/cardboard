@@ -37,8 +37,8 @@ export function AgentTab() {
             <Field label="Name">
               <Input value={draft.agentName} onChange={(e) => setDraft({ ...draft, agentName: e.target.value })} maxLength={40} />
             </Field>
-            <Field label="Avatar URL" hint="Optional. A square image works best.">
-              <Input type="url" value={draft.agentAvatarUrl ?? ""} onChange={(e) => setDraft({ ...draft, agentAvatarUrl: e.target.value || null })} placeholder="https://" />
+            <Field label="Avatar URL" hint="A square image. The default is the built-in Milo avatar at /brand/milo.png.">
+              <Input type="text" value={draft.agentAvatarUrl ?? ""} onChange={(e) => setDraft({ ...draft, agentAvatarUrl: e.target.value || null })} placeholder="https://" />
             </Field>
           </div>
         </div>
