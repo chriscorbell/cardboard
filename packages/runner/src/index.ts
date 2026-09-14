@@ -63,6 +63,14 @@ const startSchema = z.object({
 
 const containerName = (sessionId: string) => `cardboard-session-${sessionId}`;
 
+async function ensureImage(image: string): Promise<void> {
+  const present = await docker.getImage(image).inspect().catch(() => null);
+  if (present) return;
+  console.log(`[runner] pulling ${image}`);
+  const stream = await docker.pull(image);
+  await new Promise<void>((resolve, reject) => docker.modem.followProgress(stream, (err) => (err ? reject(err) : resolve())));
+}
+
 async function reportExit(sessionId: string, exitCode: number, reason?: string) {
   try {
     await fetch(`${env.appUrl}/api/internal/sessions/${sessionId}/exit`, {
@@ -103,6 +111,7 @@ app.post("/sessions", async (c) => {
   if (info) return c.json({ containerId: info.Id });
 
   const image = req.image ?? env.defaultImage;
+  await ensureImage(image);
   const envList = [
     `CARDBOARD_SESSION_ID=${req.sessionId}`,
     `CARDBOARD_TOKEN=${req.token}`,

@@ -25,10 +25,15 @@ app.route("/mcp", mcp);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(here, "../client");
 if (fs.existsSync(path.join(clientDir, "index.html"))) {
+  // Runtime config is injected into the page so one image serves every environment.
+  const runtimeConfig = JSON.stringify({ clerkPublishableKey: env.authMode === "clerk" ? env.clerkPublishableKey : "" });
+  const indexHtml = fs
+    .readFileSync(path.join(clientDir, "index.html"), "utf8")
+    .replace("<!--cardboard-config-->", `<script>window.__CARDBOARD_CONFIG__=${runtimeConfig}</script>`);
   app.use("/assets/*", serveStatic({ root: path.relative(process.cwd(), clientDir) }));
   app.get("*", async (c) => {
     if (c.req.path.startsWith("/api") || c.req.path.startsWith("/mcp")) return c.notFound();
-    return c.html(fs.readFileSync(path.join(clientDir, "index.html"), "utf8"));
+    return c.html(indexHtml);
   });
 }
 

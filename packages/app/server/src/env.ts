@@ -20,7 +20,7 @@ export const env = {
   publicUrl: str("CARDBOARD_PUBLIC_URL", "http://localhost:5173").replace(/\/$/, ""),
   authMode: (str("CARDBOARD_AUTH", "dev") === "clerk" ? "clerk" : "dev") as "dev" | "clerk",
   clerkSecretKey: str("CLERK_SECRET_KEY"),
-  clerkPublishableKey: str("CLERK_PUBLISHABLE_KEY"),
+  clerkPublishableKey: str("CLERK_PUBLISHABLE_KEY") || str("VITE_CLERK_PUBLISHABLE_KEY"),
   resendApiKey: str("RESEND_API_KEY"),
   emailFrom: str("CARDBOARD_EMAIL_FROM", "Milo <cardboard@xode.cc>"),
   runnerUrl: str("CARDBOARD_RUNNER_URL"),
