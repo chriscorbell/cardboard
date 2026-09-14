@@ -38,5 +38,9 @@ Branch: `main`, pushed to `github.com/chriscorbell/cardboard` (public since 2026
 - Nightly sweep scheduler exists (`server/src/services/sweep.ts`, 03:00 local, skipped in noop mode) but has never started a real container. No GitHub App token minting. `read_attachment` inlines text only up to 200 KB.
 - Browser-automation note: the in-app browser's `key` action does not reach React keydown handlers; dispatching a KeyboardEvent does. Not an app bug.
 
-Next action: review with the user, decide the P1 items, then deploy the stack to minicore from `deploy/compose.yaml` with a Clerk app configured.
+## Deployed 2026-09-14
+
+The stack runs on minicore from `~/docker/stacks/cardboard` (compose committed to `chriscorbell/stacks`, `.env` copied by scp, secrets never committed). `https://cardboard.xode.cc/healthz` answers through the Cloudflare Tunnel. Clerk production instance (secondary application, Google OAuth with custom credentials) is configured; the publishable key is injected into the page at request time from `CLERK_PUBLISHABLE_KEY` or `VITE_CLERK_PUBLISHABLE_KEY`. Still empty in the server env: `RESEND_API_KEY` (emails log to stdout) and `CLAUDE_CODE_OAUTH_TOKEN` (no Session can run). Image lessons: the app image must ship `packages/shared` source plus its `node_modules`; compose services need `init: true` or SIGTERM waits 30 s; every push rebuilds all five images so Watchtower restarts every service.
+
+Next action: sign in on the production URL as the Admin, invite the first member, then fill `CLAUDE_CODE_OAUTH_TOKEN` and verify the egress header rewrite with one real Session against a test repository. Decide the design-review P1 items before any client repository.
 Close when: the stack runs on minicore behind `cardboard.xode.cc` and one real Session completes against a test repository.

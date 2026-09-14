@@ -47,6 +47,8 @@ CI publishes `ghcr.io/chriscorbell/cardboard-{app,runner,egress,preview-router,a
 2. `docker compose up -d`. Watchtower keeps the four services current; Session containers carry the opt-out label.
 3. Add `cardboard.xode.cc` to the Cloudflare Tunnel pointing at `http://10.0.0.20:3070`, and `*.preview.xode.cc` at port 3073.
 
+The `.env` beside the compose file is never committed: keep the master copy in `deploy/.env` locally and `scp` it to `~/docker/stacks/cardboard/.env` on minicore when it changes. The stack has been live at `https://cardboard.xode.cc` since 2026-09-14.
+
 Steps that need the Admin's hands: creating the Clerk application, verifying `xode.cc` in Resend, creating and installing the GitHub App, and running `claude setup-token` for the egress proxy. The design document lists them.
 
 ## Status
