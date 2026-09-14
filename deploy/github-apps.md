@@ -16,7 +16,11 @@ Twice, at https://github.com/settings/apps/new (once per app):
 | Homepage URL | https://cardboard.xode.cc | https://cardboard.xode.cc |
 | Webhook | Uncheck **Active** | Uncheck **Active** |
 | Repository permissions | Contents: Read and write. Pull requests: Read and write. Metadata: Read. | Same |
-| Where can this app be installed | Only on this account | Only on this account |
+| Where can this app be installed | Any account | Any account |
+
+"Any account" is required because installation is always performed by a repository's owner: a
+client installs the apps on their own repository, which "Only on this account" would prevent. The
+apps stay unlisted; only someone with the install link can add them.
 
 After creating each app: note the **App ID** on its settings page, then **Generate a private key**
 and keep the downloaded `.pem`. Store both with:
@@ -47,6 +51,10 @@ In the repository: Settings, Rules, Rulesets, **New branch ruleset**.
 
 With that ruleset, `cardboard-sessions[bot]` can push branches and open pull requests but every
 merge attempt from it fails, while the app's own merge on Approval succeeds through the bypass.
+
+On a client-owned repository the client creates this ruleset, or grants you admin on the
+repository so you can. Until it exists, the Sessions token could merge, so treat the ruleset as
+part of onboarding a Board, not an optional extra.
 
 ## 4. Deploy
 
