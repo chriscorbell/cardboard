@@ -30,6 +30,7 @@ import { inviteUser, listUsers, setUserStatus } from "../services/users.js";
 import { subscribe } from "../services/realtime.js";
 import { cancelSession, listAllSessions, listBoardSessions } from "../services/orchestrator.js";
 import { ApprovalError, approveCard, listApprovals } from "../services/approvals.js";
+import { backupsView, takeSnapshot } from "../services/backup.js";
 import { installationStatus, parseRepoUrl } from "../services/github.js";
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
@@ -268,6 +269,12 @@ admin.put("/boards/:id/members", zValidator("json", boardMembersSchema), async (
 
 admin.get("/settings", async (c) => c.json(await getSettings()));
 admin.patch("/settings", zValidator("json", settingsSchema), async (c) => c.json(await updateSettings(c.req.valid("json"))));
+
+admin.get("/backups", (c) => c.json(backupsView()));
+admin.post("/backups", async (c) => {
+  const { snapshot } = await takeSnapshot();
+  return c.json({ ...backupsView(), snapshot }, 201);
+});
 
 admin.get("/sessions", async (c) => c.json(await listAllSessions()));
 admin.post("/sessions/:id/cancel", async (c) => {

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  BackupsView,
   Board,
   BoardView,
   Card,
@@ -50,6 +51,7 @@ export const keys = {
   adminBoards: ["admin", "boards"] as const,
   adminSettings: ["admin", "settings"] as const,
   adminSessions: ["admin", "sessions"] as const,
+  adminBackups: ["admin", "backups"] as const,
 };
 
 export function useMe() {
@@ -169,4 +171,14 @@ export function useAdminSettings() {
 }
 export function useAdminSessions() {
   return useQuery({ queryKey: keys.adminSessions, queryFn: () => request<(SessionSummary & { boardId: string })[]>("/admin/sessions"), refetchInterval: 10_000 });
+}
+export function useAdminBackups() {
+  return useQuery({ queryKey: keys.adminBackups, queryFn: () => request<BackupsView>("/admin/backups") });
+}
+export function useTakeBackup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => request<BackupsView>("/admin/backups", { method: "POST" }),
+    onSuccess: (view) => qc.setQueryData(keys.adminBackups, view),
+  });
 }

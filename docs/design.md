@@ -97,7 +97,7 @@ Cardboard runs on minicore as one compose stack named `cardboard` in `chriscorbe
 | `egress` | Credential-injecting proxy for provider traffic | Internal only |
 | `preview-router` | Routes `*.preview.xode.cc` by hostname and enforces the signed cookie | Host port, behind the tunnel |
 
-The app keeps its state in SQLite in WAL mode, see [ADR 0004](adr/0004-sqlite-in-a-single-server-process.md). Attachments are stored on the data bind mount with content-addressed names and served through the app with membership checks; there are no public file URLs. Only the runner mounts the Docker socket, see [ADR 0005](adr/0005-runner-service-owns-the-docker-socket.md).
+The app keeps its state in SQLite in WAL mode, see [ADR 0004](adr/0004-sqlite-in-a-single-server-process.md). Once a day it writes a snapshot with `VACUUM INTO` to `backups/` on the same bind mount, verifies it, and keeps the newest fourteen; restoring one is an operator procedure with the app stopped, described in [the backups runbook](runbooks/backups.md). Attachments are stored on the data bind mount with content-addressed names and served through the app with membership checks; there are no public file URLs. Only the runner mounts the Docker socket, see [ADR 0005](adr/0005-runner-service-owns-the-docker-socket.md).
 
 Public exposure uses the existing Cloudflare Tunnel with two hostnames added in the Cloudflare dashboard: `cardboard.xode.cc` and `*.preview.xode.cc`. Clerk is the only gate; there is no Cloudflare Access. TLS terminates at Cloudflare's edge.
 

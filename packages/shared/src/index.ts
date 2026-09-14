@@ -272,6 +272,21 @@ export type Settings = {
   sessionWallClockMinutes: number;
 };
 
+// A SQLite snapshot on the data bind mount, written with VACUUM INTO and verified before it counts.
+export interface BackupSnapshot {
+  name: string;
+  bytes: number;
+  takenAt: string;
+}
+
+export interface BackupsView {
+  dir: string;
+  hour: number; // local hour of the daily snapshot; negative means scheduled snapshots are off
+  keep: number;
+  databaseBytes: number;
+  snapshots: BackupSnapshot[];
+}
+
 // ---- realtime ----
 export type BoardEvent =
   | { type: "card.upserted"; card: Card }
