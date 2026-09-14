@@ -49,7 +49,7 @@ CI publishes `ghcr.io/chriscorbell/cardboard-{app,runner,egress,preview-router,a
 
 The `.env` beside the compose file is never committed: keep the master copy in `deploy/.env` locally and `scp` it to `~/docker/stacks/cardboard/.env` on minicore when it changes. The stack has been live at `https://cardboard.xode.cc` since 2026-09-14.
 
-Steps that need the Admin's hands: creating the Clerk application, verifying `xode.cc` in Resend, creating and installing the GitHub App, and running `claude setup-token` for the egress proxy. The design document lists them.
+Steps that need the Admin's hands: creating the Clerk application, verifying `cardboard.xode.cc` in Resend, creating and installing the GitHub App, and running `claude setup-token` for the egress proxy. The design document lists them.
 
 ## Status
 

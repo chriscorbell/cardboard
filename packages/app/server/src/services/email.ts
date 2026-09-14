@@ -50,7 +50,7 @@ async function deliver(id: string): Promise<void> {
       to: [user.email],
       subject: row.subject,
       html: row.html,
-      reply_to: "no-reply@xode.cc",
+      reply_to: "no-reply@cardboard.xode.cc",
     }),
   });
   if (!res.ok) {

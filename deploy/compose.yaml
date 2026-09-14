@@ -22,7 +22,7 @@ services:
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
       CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      CARDBOARD_EMAIL_FROM: "Milo <cardboard@xode.cc>"
+      CARDBOARD_EMAIL_FROM: "Milo <milo@cardboard.xode.cc>"
       CARDBOARD_RUNNER_URL: http://runner:3071
       CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
     volumes:

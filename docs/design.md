@@ -77,7 +77,7 @@ Sessions reach Cardboard through an MCP server over HTTP with a session-scoped b
 
 ## Notifications
 
-Resend sends email from `cardboard@xode.cc` with the sender name set to the Agent's name. Triggers for email: a Mention, and a Card move for the Card's creator. Each email carries the Comment body and a deep link to the Card. There is no inbound email; reply-to is a no-reply address. The Admin receives the same emails as any other User.
+Resend sends email from `milo@cardboard.xode.cc` (the verified sending domain is `cardboard.xode.cc`) with the sender name set to the Agent's name. Triggers for email: a Mention, and a Card move for the Card's creator. Each email carries the Comment body and a deep link to the Card. There is no inbound email; reply-to is a no-reply address. The Admin receives the same emails as any other User.
 
 ## Admin panel, v1 scope
 

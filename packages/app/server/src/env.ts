@@ -22,7 +22,7 @@ export const env = {
   clerkSecretKey: str("CLERK_SECRET_KEY"),
   clerkPublishableKey: str("CLERK_PUBLISHABLE_KEY") || str("VITE_CLERK_PUBLISHABLE_KEY"),
   resendApiKey: str("RESEND_API_KEY"),
-  emailFrom: str("CARDBOARD_EMAIL_FROM", "Milo <cardboard@xode.cc>"),
+  emailFrom: str("CARDBOARD_EMAIL_FROM", "Milo <milo@cardboard.xode.cc>"),
   runnerUrl: str("CARDBOARD_RUNNER_URL"),
   runnerToken: str("CARDBOARD_RUNNER_TOKEN"),
   triggerCoalesceMs: Number(str("CARDBOARD_TRIGGER_COALESCE_MS", "60000")),
