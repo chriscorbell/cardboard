@@ -1,5 +1,7 @@
 # Design review, 2026-09-13
 
+**Status as of 2026-09-14.** Finding 1 resolved by [ADR 0008](adr/0008-two-github-apps-for-merge-authority.md): two GitHub Apps and a branch ruleset, verified by a merge on `chriscorbell/cardboard`. Finding 2 resolved: Approval records the head SHA and the merge uses GitHub's SHA precondition; leaving Review voids Approvals. Finding 4 partly resolved: idempotent container creation and boot reconciliation against runner inventory exist; a restart mid-Session has not been exercised. Finding 7 resolved: a human move to Done cancels the Session and consumes pending Triggers. Findings 3, 5, 6, and 8 remain open. The smaller corrections remain open.
+
 The execution and merge design needs revision before implementation. The single app process, SQLite, and separate runner fit the stated deployment. The gaps are in who enforces permissions, what Approval covers, and how work survives state changes and restarts.
 
 Reviewed [the design](design.md), [the glossary](../CONTEXT.md), and all seven accepted ADRs. There is no application code yet. Findings below follow from the proposed behavior; they are not observed runtime failures. Proposed remedies are review recommendations, not accepted decisions.
