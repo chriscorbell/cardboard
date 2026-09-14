@@ -32,6 +32,7 @@ Other commands:
 
 ```bash
 pnpm typecheck        # every package
+pnpm test             # node:test suites, currently packages/app/server/test
 pnpm build            # client bundle plus server to packages/app/dist
 pnpm db:generate      # new Drizzle migration after editing server/src/db/schema.ts
 ```
@@ -51,6 +52,10 @@ CI publishes `ghcr.io/chriscorbell/cardboard-{app,runner,egress,preview-router,a
 The `.env` beside the compose file is never committed: keep the master copy in `deploy/.env` locally and `scp` it to `~/docker/stacks/cardboard/.env` on minicore when it changes. The stack has been live at `https://cardboard.xode.cc` since 2026-09-14.
 
 Steps that need the Admin's hands: creating the Clerk application, verifying `cardboard.xode.cc` in Resend, creating and installing the GitHub App, and running `claude setup-token` for the egress proxy. The design document lists them.
+
+## Backups
+
+The app writes one verified SQLite snapshot a day to `backups/` on the data bind mount with `VACUUM INTO`, keeps the newest 14, and shows them under Admin → Backups, where *Snapshot now* takes one on demand. Copying the live `cardboard.db` is not a backup: recent commits sit in the write-ahead log. Restoring is a host procedure with the app stopped, and attachments in `uploads/` are backed up separately. [docs/runbooks/backups.md](docs/runbooks/backups.md) has the settings, the restore steps, and how to copy snapshots off the host.
 
 ## Status
 

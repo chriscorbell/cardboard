@@ -8,3 +8,5 @@ Threshold: 12 entries. Past it, the bounded review in [maintenance](../maintenan
 
 - [pnpm 11 build approvals](pnpm-11-build-approvals.md): read when `pnpm install` or `pnpm exec` fails with `ERR_PNPM_IGNORED_BUILDS`.
 - [Docker image and compose gotchas](docker-image-and-compose-gotchas.md): read when a service image fails at boot with a missing module, a container takes 30 s to stop, or an internal API call returns 401.
+- [A Session cannot push a change to `.github/workflows/`](session-token-cannot-push-workflow-files.md): read when a push is refused for want of `workflows` permission, or before planning a workflow-file edit.
+- [A Session's branch can conflict with `main` without the Session noticing](check-the-pull-request-merges-before-reporting.md): read before reporting a card ready, or when resuming a card whose pull request is already open.

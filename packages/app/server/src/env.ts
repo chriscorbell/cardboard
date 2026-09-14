@@ -24,9 +24,11 @@ function githubApp(prefix: string) {
   };
 }
 
+const dataDir = path.resolve(str("CARDBOARD_DATA_DIR", "./data"));
+
 export const env = {
   port: Number(str("PORT", "3070")),
-  dataDir: path.resolve(str("CARDBOARD_DATA_DIR", "./data")),
+  dataDir,
   publicUrl: str("CARDBOARD_PUBLIC_URL", "http://localhost:5173").replace(/\/$/, ""),
   authMode: (str("CARDBOARD_AUTH", "dev") === "clerk" ? "clerk" : "dev") as "dev" | "clerk",
   clerkSecretKey: str("CLERK_SECRET_KEY"),
@@ -38,5 +40,9 @@ export const env = {
   githubSessionsApp: githubApp("GITHUB_SESSIONS_APP"),
   githubMergeApp: githubApp("GITHUB_MERGE_APP"),
   triggerCoalesceMs: Number(str("CARDBOARD_TRIGGER_COALESCE_MS", "60000")),
+  // Snapshots live beside the database on the data bind mount. Set the hour to -1 to take none.
+  backupDir: path.resolve(str("CARDBOARD_BACKUP_DIR", path.join(dataDir, "backups"))),
+  backupHour: Number(str("CARDBOARD_BACKUP_HOUR", "4")),
+  backupKeep: Number(str("CARDBOARD_BACKUP_KEEP", "14")),
   isProduction: process.env.NODE_ENV === "production",
 };
