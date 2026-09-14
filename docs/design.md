@@ -1,6 +1,6 @@
 # Cardboard design
 
-Cardboard is a self-hosted kanban platform where every human change to a Board summons a disposable coding agent that either does the work or asks for what it needs. This document records the agreed design as of 2026-09-13, before any code exists. Vocabulary is defined in [CONTEXT.md](../CONTEXT.md) and is used here with its glossary meaning. Decisions with real trade-offs have their own record under [docs/adr](adr/).
+Cardboard is a self-hosted kanban platform where every human change to a Board summons a disposable coding agent that either does the work or asks for what it needs. This document records the agreed design as of 2026-09-13, revised 2026-09-14 after the first production deployment. Vocabulary is defined in [CONTEXT.md](../CONTEXT.md) and is used here with its glossary meaning. Decisions with real trade-offs have their own record under [docs/adr](adr/).
 
 ## Actors
 
@@ -69,7 +69,7 @@ Approval is an explicit control on a Card in Review, available to any Member of 
 
 ## Providers and credentials
 
-Provider is a per-Board default, Claude Code or Codex, with automatic fallback to the other on usage-limit errors. Both run on the Admin's personal subscriptions. The Claude Code token is held only by the egress proxy, which injects it on requests to the provider; Session containers never see it. Codex uses its sign-in file inside the container until the proxy path is verified for it. See [ADR 0002](adr/0002-subscription-credentials-stay-in-the-egress-proxy.md). Outbound network from Sessions is otherwise unrestricted in v1, a deliberate trade-off recorded in [ADR 0003](adr/0003-unrestricted-agent-egress-in-v1.md).
+Provider is a per-Board default, Claude Code or Codex, with automatic fallback to the other on usage-limit errors (fallback is not yet implemented). A Board may also name the model and a reasoning level (low, medium, high, max), passed to the Provider CLI; empty means the Provider default. Both run on the Admin's personal subscriptions. The Claude Code token is held only by the egress proxy, which injects it on requests to the provider; Session containers never see it. Codex uses its sign-in file inside the container until the proxy path is verified for it. See [ADR 0002](adr/0002-subscription-credentials-stay-in-the-egress-proxy.md). Outbound network from Sessions is otherwise unrestricted in v1, a deliberate trade-off recorded in [ADR 0003](adr/0003-unrestricted-agent-egress-in-v1.md).
 
 Repositories live on GitHub. Two GitHub Apps are installed on each repository: each Session receives a one-hour installation token from the Sessions app, scoped to that repository, and only Cardboard uses the Merge app, as the bypass actor of a branch ruleset that otherwise requires an approved pull request. Commits are attributed to the Sessions app's bot identity. See [ADR 0007](adr/0007-github-app-installation-tokens-per-session.md) and [ADR 0008](adr/0008-two-github-apps-for-merge-authority.md). Setup steps are in [deploy/github-apps.md](../deploy/github-apps.md).
 
@@ -82,7 +82,7 @@ Resend sends email from `milo@cardboard.xode.cc` (the verified sending domain is
 ## Admin panel, v1 scope
 
 - Users: invite, revoke, grant and remove Board membership.
-- Boards: create, repository URL, GitHub App installation status, preview mode, Provider, image override, concurrency caps, prompt append text.
+- Boards: create, repository URL, GitHub App installation status for both apps, preview mode, Provider, model, reasoning level, image override, concurrency caps, prompt append text.
 - Agent: name, avatar, global caps.
 - Sessions: active list, cancel, cancel and re-run.
 
@@ -105,7 +105,11 @@ This repository is a pnpm monorepo in TypeScript with packages for `app` (Vite +
 
 ## Manual steps the Admin performs
 
-These cannot be automated from inside Cardboard and get a guided wizard when reached: adding the two tunnel hostnames in the Cloudflare dashboard, verifying `xode.cc` in Resend, creating the GitHub App and installing it on each repository, creating the Clerk application, and generating the Claude Code long-lived token with `claude setup-token`.
+These cannot be automated from inside Cardboard: adding the two tunnel hostnames in the Cloudflare dashboard, verifying `cardboard.xode.cc` in Resend, creating the two GitHub Apps and installing both on each repository ([deploy/github-apps.md](../deploy/github-apps.md)), creating the Clerk application (a secondary application on `cardboard.xode.cc` with Google sign-in), and generating the Claude Code long-lived token with `claude setup-token`. Preparing a repository, including its branch ruleset, is scripted for an agent in [skills/cardboard-onboard](../skills/cardboard-onboard/SKILL.md).
+
+## Status
+
+As of 2026-09-14 the stack runs on minicore at `https://cardboard.xode.cc` and the loop has completed on two repositories, including this one: card, Session, pull request, Approval, merge by Cardboard, deploy. Not yet built: runner-hosted Previews and their cookie flow, Provider fallback, invitation emails, child-Card dispatch, and Codex through the egress proxy. [docs/design-review.md](design-review.md) records which review findings are resolved.
 
 ## Out of scope for v1
 

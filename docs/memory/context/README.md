@@ -6,4 +6,5 @@ One bullet per topic note, with a relative link and a concrete "read when" cue. 
 
 Threshold: 12 entries. Past it, the bounded review in [maintenance](../maintenance.md) samples this category first.
 
-- [minicore deployment constraints](minicore-deployment-constraints.md): read when deploying or exposing the Cardboard stack on minicore, or picking a host port.
+- [minicore deployment constraints](minicore-deployment-constraints.md): read when deploying or exposing a stack on minicore, or picking a host port.
+- [Operating Cardboard on minicore](cardboard-production-operations.md): read when deploying a change, rotating a secret, reading a Session log, or querying the production database.

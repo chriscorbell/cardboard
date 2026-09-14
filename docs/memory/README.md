@@ -16,10 +16,11 @@ Read this index and [the protocol](protocol.md) when starting or resuming a sess
 
 - [CONTEXT.md](../../CONTEXT.md): the glossary. Terms are used with these meanings everywhere.
 - [Design](../design.md): the agreed v1 design, dated 2026-09-13, with links to the decision records.
-- [Decision records](../adr/): seven ADRs covering identity, credentials, egress, storage, the runner, Approval, and GitHub tokens.
-- [Design review](../design-review.md): eight findings against the design, dated 2026-09-13, not yet decided. Read before implementing Sessions, GitHub writes, or Previews; it does not supersede accepted decisions.
+- [Decision records](../adr/): eight ADRs covering identity, credentials, egress, storage, the runner, Approval, GitHub tokens, and the two-app merge authority.
+- [Design review](../design-review.md): eight findings against the design, dated 2026-09-13, with a status header saying which are resolved. Read before implementing Previews or child-Card dispatch; it does not supersede accepted decisions.
+- [GitHub Apps guide](../../deploy/github-apps.md) and the [cardboard-onboard skill](../../skills/cardboard-onboard/SKILL.md): how a repository is prepared for a board.
 - [README](../../README.md): how to run, build, and deploy; the Status section says what is not built.
 
 ## Review record
 
-2026-09-14: ordinary review after deduplicating the Design review row in this index. `context/minicore-deployment-constraints.md` deferred again: its live fleet survey exceeds the incidental review bound and this task changed no infrastructure, so its verification date is unchanged. `lessons/pnpm-11-build-approvals.md` checked against `pnpm-workspace.yaml`, `.npmrc`, and a passing `pnpm install --frozen-lockfile`; retained with the date refreshed. `work/2026-09-14-first-implementation.md` checked and retained: its close condition is met, but its next action (design-review findings 3, 5, and 6) is still open. Next cursor: `context/` entry 1.
+2026-09-14 (second): ordinary review after reconciling documents at the end of the first implementation. Retired `work/2026-09-14-first-implementation.md` to `archive/` with its close condition met; promoted its operating procedures to `context/cardboard-production-operations.md` and its deployment failures to `lessons/docker-image-and-compose-gotchas.md`; opened `work/2026-09-14-v1-gaps.md`. Sampled `context/minicore-deployment-constraints.md`: retained, deferred re-verification of the fleet survey, verification date unchanged. Next cursor: `lessons/` entry 1.

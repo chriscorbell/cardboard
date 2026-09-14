@@ -54,4 +54,6 @@ Steps that need the Admin's hands: creating the Clerk application, verifying `ca
 
 ## Status
 
-The app, client, MCP endpoint, runner, egress proxy, and deploy files exist and typecheck. Not yet built: GitHub App token minting, runner-hosted Previews and the app side of preview cookies, and Codex through the egress proxy. The nightly sweep scheduler and card-moved emails exist but have only run in noop mode. The [design review](docs/design-review.md) lists P1 findings on merge authorisation, Approval binding, child-card dispatch, restart recovery, preview cookies, and network isolation that need decisions before Sessions run against client repositories.
+Live at `https://cardboard.xode.cc` since 2026-09-14. Verified end to end on two repositories, this one included: sign-in through Clerk, card to Session, per-Session GitHub tokens, pull request with the acceptance command passing, Approval bound to the reviewed commit, merge by Cardboard through the Merge app, and email at each step. Not yet built: runner-hosted Previews and their cookie flow, Provider fallback on usage limits, invitation emails, child-card dispatch, and Codex through the egress proxy. Open review findings are listed at the top of the [design review](docs/design-review.md).
+
+To prepare a repository for a board, run the `cardboard-onboard` skill in that repository, or follow [deploy/github-apps.md](deploy/github-apps.md) by hand.
