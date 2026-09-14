@@ -30,6 +30,7 @@ import { inviteUser, listUsers, setUserStatus } from "../services/users.js";
 import { subscribe } from "../services/realtime.js";
 import { cancelSession, listAllSessions, listBoardSessions } from "../services/orchestrator.js";
 import { ApprovalError, approveCard, listApprovals } from "../services/approvals.js";
+import { installationStatus, parseRepoUrl } from "../services/github.js";
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
@@ -246,6 +247,13 @@ admin.patch("/boards/:id", zValidator("json", upsertBoardSchema), async (c) => {
   const existing = await getBoardBySlug(c.req.valid("json").slug);
   if (existing && existing.id !== c.req.param("id")) return c.json({ error: "slug already in use" }, 409);
   return c.json(await updateBoard(c.req.param("id"), c.req.valid("json")));
+});
+admin.get("/boards/:id/github", async (c) => {
+  const board = await getBoardById(c.req.param("id"));
+  if (!board) return c.json({ error: "not_found" }, 404);
+  const repo = parseRepoUrl(board.repoUrl);
+  if (!repo) return c.json({ repo: null, sessions: "unconfigured", merge: "unconfigured" });
+  return c.json({ repo: `${repo.owner}/${repo.repo}`, ...(await installationStatus(repo.owner, repo.repo)) });
 });
 admin.put("/boards/:id/members", zValidator("json", boardMembersSchema), async (c) => {
   await setMembers(c.req.param("id"), c.req.valid("json").userIds);

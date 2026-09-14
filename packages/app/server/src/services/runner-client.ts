@@ -10,6 +10,9 @@ export interface StartSessionRequest {
   token: string;
   wallClockMinutes: number;
   prompt: string;
+  githubToken: string | null;
+  gitName: string;
+  gitEmail: string;
 }
 
 export interface RunnerInventoryItem {

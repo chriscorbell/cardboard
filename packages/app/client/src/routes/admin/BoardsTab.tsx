@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import type { Board } from "@cardboard/shared";
 import { keys, request, useAdminBoards, useAdminUsers, type AdminBoard } from "../../lib/api";
@@ -113,9 +113,10 @@ export function BoardsTab() {
               <Input required value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: slugify(e.target.value) })} pattern="[a-z0-9][a-z0-9-]*" />
             </Field>
           </div>
-          <Field label="Repository URL" hint="GitHub only. The Cardboard GitHub App must be installed on it.">
+          <Field label="Repository URL" hint="GitHub only. Both Cardboard GitHub Apps must be installed on it.">
             <Input type="url" value={draft.repoUrl} onChange={(e) => setDraft({ ...draft, repoUrl: e.target.value })} placeholder="https://github.com/org/repo" />
           </Field>
+          {editing !== "new" && editing ? <GitHubStatus boardId={editing.id} /> : null}
           <div className="grid grid-cols-3 gap-3">
             <Field label="Provider">
               <Select value={draft.provider} onChange={(e) => setDraft({ ...draft, provider: e.target.value as Draft["provider"] })}>
@@ -176,6 +177,19 @@ export function BoardsTab() {
         </form>
       </Dialog>
     </>
+  );
+}
+
+function GitHubStatus({ boardId }: { boardId: string }) {
+  const q = useQuery({ queryKey: ["admin", "board-github", boardId], queryFn: () => request<{ repo: string | null; sessions: string; merge: string }>(`/admin/boards/${boardId}/github`) });
+  if (!q.data || !q.data.repo) return null;
+  const tone = (s: string) => (s === "installed" ? "ok" : s === "missing" ? "danger" : "neutral") as "ok" | "danger" | "neutral";
+  return (
+    <div className="-mt-2 flex flex-wrap items-center gap-2 text-[12px] text-ink-muted">
+      <span>GitHub Apps on {q.data.repo}:</span>
+      <Chip tone={tone(q.data.sessions)}>sessions {q.data.sessions}</Chip>
+      <Chip tone={tone(q.data.merge)}>merge {q.data.merge}</Chip>
+    </div>
   );
 }
 

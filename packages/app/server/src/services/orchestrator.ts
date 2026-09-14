@@ -9,6 +9,7 @@ import { recordEvent, SYSTEM_ACTOR, type Actor } from "./events.js";
 import { getSettings } from "./settings.js";
 import { runner } from "./runner-client.js";
 import { buildSessionPrompt } from "./prompt.js";
+import { botIdentity, githubConfigured, mintInstallationToken, parseRepoUrl } from "./github.js";
 
 const ACTIVE = ["queued", "starting", "running"] as const;
 
@@ -131,6 +132,14 @@ async function dispatch(cardId: string): Promise<void> {
 
   try {
     const prompt = await buildSessionPrompt({ board, card, sessionId, triggers: pending });
+    const repo = parseRepoUrl(board.repoUrl);
+    let githubToken: string | null = null;
+    if (repo && githubConfigured("sessions")) {
+      githubToken = (await mintInstallationToken("sessions", repo.owner, repo.repo)).token;
+    } else if (repo) {
+      console.warn(`[orchestrator] GitHub sessions app not configured; session ${sessionId} clones ${board.repoUrl} anonymously`);
+    }
+    const bot = botIdentity("sessions");
     const { containerId } = await runner.start({
       sessionId,
       boardSlug: board.slug,
@@ -141,6 +150,9 @@ async function dispatch(cardId: string): Promise<void> {
       token,
       wallClockMinutes: settings.sessionWallClockMinutes,
       prompt,
+      githubToken,
+      gitName: bot.name,
+      gitEmail: bot.email,
     });
     await db
       .update(schema.sessions)

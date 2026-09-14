@@ -59,6 +59,9 @@ const startSchema = z.object({
   token: z.string(),
   wallClockMinutes: z.number(),
   prompt: z.string(),
+  githubToken: z.string().nullable().default(null),
+  gitName: z.string().default("cardboard"),
+  gitEmail: z.string().default("cardboard@users.noreply.github.com"),
 });
 
 const containerName = (sessionId: string) => `cardboard-session-${sessionId}`;
@@ -120,6 +123,9 @@ app.post("/sessions", async (c) => {
     `CARDBOARD_REPO_URL=${req.repoUrl ?? ""}`,
     `CARDBOARD_BRANCH=${req.branch ?? ""}`,
     `CARDBOARD_WALL_CLOCK_MINUTES=${req.wallClockMinutes}`,
+    `CARDBOARD_GIT_NAME=${req.gitName}`,
+    `CARDBOARD_GIT_EMAIL=${req.gitEmail}`,
+    ...(req.githubToken ? [`GITHUB_TOKEN=${req.githubToken}`, `GH_TOKEN=${req.githubToken}`] : []),
     // Claude Code talks to the provider through the egress proxy, which holds the real credential.
     `ANTHROPIC_BASE_URL=${env.egressUrl}/anthropic`,
     `ANTHROPIC_API_KEY=cardboard-egress`,

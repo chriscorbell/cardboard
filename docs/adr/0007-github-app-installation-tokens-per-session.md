@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-09-13
+amended: 2026-09-14 by ADR 0008, which splits the single App into a Sessions app and a Merge app
 ---
 # One GitHub App, one-hour installation token per Session
 
