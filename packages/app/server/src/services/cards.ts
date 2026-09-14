@@ -1,10 +1,10 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Card, Column, Priority, SessionSummary } from "@cardboard/shared";
 import { db, schema } from "../db/index.js";
 import { newId } from "../ids.js";
 import { publish } from "./realtime.js";
 import { recordEvent, type Actor } from "./events.js";
-import { enqueueTrigger } from "./orchestrator.js";
+import { enqueueTrigger, closeCardWork } from "./orchestrator.js";
 import { notifyCardMoved } from "./notifications.js";
 
 export function toSessionSummary(row: typeof schema.sessions.$inferSelect): SessionSummary {
@@ -206,7 +206,7 @@ export async function moveCard(
       updatedAt: new Date().toISOString(),
     })
     .where(eq(schema.cards.id, id));
-  const card = (await getCard(id))!;
+  let card = (await getCard(id))!;
   if (columnChanged) {
     await recordEvent({
       boardId: card.boardId,
@@ -215,10 +215,19 @@ export async function moveCard(
       type: "card.moved",
       payload: { from: current.column, to: input.column },
     });
+    // Leaving Review invalidates any standing Approval: the next pull request needs a fresh one.
+    if (current.column === "review") {
+      await db.update(schema.approvals).set({ invalidatedAt: new Date().toISOString() }).where(and(eq(schema.approvals.cardId, id), isNull(schema.approvals.invalidatedAt)));
+    }
+    // A human move to Done closes the card: the active Session is cancelled and nothing re-runs.
+    if (input.column === "done" && input.actor.kind === "user") {
+      await closeCardWork(id, input.actor);
+      card = (await getCard(id))!;
+    }
   }
   publish(card.boardId, { type: "card.upserted", card });
   if (columnChanged) void notifyCardMoved(card, current.column, input.actor).catch((err) => console.error("[notify] card moved", err));
-  if (columnChanged && input.actor.kind === "user" && !input.silent) {
+  if (columnChanged && input.actor.kind === "user" && input.column !== "done" && !input.silent) {
     await enqueueTrigger({
       card,
       kind: "card_moved",

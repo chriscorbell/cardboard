@@ -25,6 +25,12 @@ Branch: `main`, local commits only, nothing pushed. No GitHub repository exists 
 - Cloudflare hostnames, Clerk app, Resend domain, GitHub App, `claude setup-token`.
 - Whether the local Qwen model should take "workhorse" tasks; the user wants to set that up together.
 
+## Review findings already absorbed in code
+
+- Finding 7 (human move to Done races with work): a human move to Done now cancels the active Session, consumes pending Triggers, and clears the re-run flag (`closeCardWork` in `server/src/services/orchestrator.ts`). Verified 2026-09-14 by moving a card with a running Session.
+- Finding 2 (Approval not bound to reviewed code): leaving Review invalidates standing Approvals; `approvals.head_sha` exists but nothing writes it until GitHub integration lands.
+- Finding 4 (restarts): boot recovery fails stale Sessions and re-schedules pending Triggers; runner container creation is idempotent by container name. Runner inventory reconciliation is still missing.
+
 ## Known gaps in the code
 
 - Egress proxy header rewrite for subscription tokens (`Authorization: Bearer` plus `anthropic-beta: oauth-2025-04-20`) is unverified against a live Claude Code session.

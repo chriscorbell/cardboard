@@ -13,6 +13,9 @@ internal.use("*", async (c, next) => {
   await next();
 });
 
+// Runner-hosted previews are not built yet; the router polls this and gets an empty table.
+internal.get("/previews", (c) => c.json([]));
+
 internal.post("/sessions/:id/exit", zValidator("json", z.object({ exitCode: z.number().int(), reason: z.string().optional() })), async (c) => {
   const { exitCode, reason } = c.req.valid("json");
   await endSession(c.req.param("id"), exitCode === 0 ? "succeeded" : "failed", reason ?? (exitCode === 0 ? "Container exited cleanly." : `Container exited with code ${exitCode}.`));

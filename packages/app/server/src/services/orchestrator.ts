@@ -199,6 +199,20 @@ export async function endSession(
   }
 }
 
+// Human closure: cancel the Claim holder, drop queued Triggers, and clear the re-run flag.
+export async function closeCardWork(cardId: string, actor: Actor): Promise<void> {
+  const t = coalesceTimers.get(cardId);
+  if (t) clearTimeout(t);
+  coalesceTimers.delete(cardId);
+  await db.update(schema.triggers).set({ status: "consumed" }).where(and(eq(schema.triggers.cardId, cardId), eq(schema.triggers.status, "pending")));
+  await db.update(schema.cards).set({ pendingRerun: false }).where(eq(schema.cards.id, cardId));
+  const active = await activeSessionForCard(cardId);
+  if (active) {
+    await endSession(active.id, "cancelled", "The card was moved to Done by a person.", { rerun: false });
+    await recordEvent({ boardId: active.boardId, cardId, actor, type: "session.cancel_requested", payload: { sessionId: active.id, reason: "closed" } });
+  }
+}
+
 export async function cancelSession(sessionId: string, actor: Actor, rerun: boolean): Promise<void> {
   await endSession(sessionId, "cancelled", rerun ? "Cancelled by the Admin; re-running." : "Cancelled by the Admin.", { rerun });
   const row = await db.select().from(schema.sessions).where(eq(schema.sessions.id, sessionId)).get();
