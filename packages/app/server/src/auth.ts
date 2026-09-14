@@ -68,6 +68,18 @@ async function resolveUser(c: Context): Promise<User | null> {
   return user;
 }
 
+// Re-read the profile from Clerk right now, bypassing the cache. Used after the user edits it.
+export async function refreshFromClerk(user: User): Promise<User> {
+  if (env.authMode !== "clerk") return user;
+  const row = await db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+  if (!row?.clerkUserId) return user;
+  const k = await getClerk();
+  const profile = await k.fetchUser(row.clerkUserId);
+  const updated = await activateFromClerk({ clerkUserId: row.clerkUserId, ...profile });
+  clerkCache.set(row.clerkUserId, { user: updated, expires: Date.now() + 5 * 60_000 });
+  return updated ?? user;
+}
+
 export const requireUser: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
   let user: User | null;
   try {

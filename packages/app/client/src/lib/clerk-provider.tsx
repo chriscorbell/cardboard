@@ -1,5 +1,7 @@
 import { ClerkProvider, SignIn, useAuth as useClerkAuth, useClerk, useUser } from "@clerk/react";
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { keys, request } from "./api";
 import { ClerkBridge, clerkPublishableKey } from "./auth";
 import { setTokenProvider } from "./api";
 
@@ -15,6 +17,23 @@ function Bridge({ children }: { children: ReactNode }) {
   useEffect(() => {
     setTokenProvider(get);
   }, [get]);
+  // When the Clerk profile changes (avatar, name), have the server re-sync and refresh what the page shows.
+  const qc = useQueryClient();
+  const seen = useRef<string | null>(null);
+  const fingerprint = user ? `${user.imageUrl}|${user.fullName ?? ""}` : null;
+  useEffect(() => {
+    if (!fingerprint) return;
+    if (seen.current === null) {
+      seen.current = fingerprint;
+      return;
+    }
+    if (seen.current === fingerprint) return;
+    seen.current = fingerprint;
+    void request("/me/refresh", { method: "POST" }).then(() => {
+      void qc.invalidateQueries({ queryKey: keys.me });
+      void qc.invalidateQueries({ queryKey: ["board"] });
+    });
+  }, [fingerprint, qc]);
   if (!isLoaded) return null;
   if (!isSignedIn || !user) {
     return (

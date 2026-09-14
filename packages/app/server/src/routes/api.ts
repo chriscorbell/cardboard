@@ -21,7 +21,7 @@ import {
 import { eq, desc } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { env } from "../env.js";
-import { requireAdmin, requireUser, type AuthVariables } from "../auth.js";
+import { refreshFromClerk, requireAdmin, requireUser, type AuthVariables } from "../auth.js";
 import { canAccessBoard, createBoard, getBoardById, getBoardBySlug, listAllBoards, listBoardsForUser, listMembers, setMembers, updateBoard } from "../services/boards.js";
 import { ConflictError, createCard, getCard, listCards, listChildren, moveCard, updateCard } from "../services/cards.js";
 import { addAttachment, createComment, getAttachment, getComment, listComments, updateComment } from "../services/comments.js";
@@ -51,6 +51,12 @@ async function boardForUser(c: Parameters<typeof actorOf>[0] & { json: (b: unkno
 
 api.get("/me", async (c) => {
   const me: Me = { user: c.get("user"), agent: await getAgentProfile(), authMode: env.authMode };
+  return c.json(me);
+});
+
+api.post("/me/refresh", async (c) => {
+  const user = await refreshFromClerk(c.get("user"));
+  const me: Me = { user, agent: await getAgentProfile(), authMode: env.authMode };
   return c.json(me);
 });
 
