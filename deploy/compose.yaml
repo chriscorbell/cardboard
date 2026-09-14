@@ -11,6 +11,7 @@ services:
   app:
     image: ghcr.io/chriscorbell/cardboard-app:latest
     restart: unless-stopped
+    init: true
     ports:
       - "3070:3070"
     environment:
@@ -31,6 +32,7 @@ services:
   runner:
     image: ghcr.io/chriscorbell/cardboard-runner:latest
     restart: unless-stopped
+    init: true
     environment:
       CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
       CARDBOARD_APP_URL: http://app:3070
@@ -47,6 +49,7 @@ services:
   egress:
     image: ghcr.io/chriscorbell/cardboard-egress:latest
     restart: unless-stopped
+    init: true
     environment:
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
     networks: [control, workload]
@@ -54,6 +57,7 @@ services:
   preview-router:
     image: ghcr.io/chriscorbell/cardboard-preview-router:latest
     restart: unless-stopped
+    init: true
     ports:
       - "3073:3072"
     environment:
