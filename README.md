@@ -12,7 +12,8 @@ A self-hosted, agent-native kanban platform. Every human change to a Board start
 | `packages/egress` | Credential-injecting proxy so Session containers never hold the provider token |
 | `packages/preview-router` | Hostname routing and signed-cookie gate for runner-hosted Previews |
 | `images/agent` | The default Session image: Node, Bun, Python, Go, git, gh, Claude Code, Codex |
-| `deploy/` | Compose file and env template for minicore |
+| `deploy/` | Compose file, env template, and the GitHub Apps guide for minicore |
+| `skills/cardboard-onboard` | Agent skill that prepares a repository for Cardboard; symlink it into `~/.claude/skills` |
 
 ## Run it locally
 
