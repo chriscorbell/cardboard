@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -167,5 +168,5 @@ mcp.all("/", async (c) => {
   await server.connect(transport);
   const body = c.req.method === "POST" ? await c.req.json().catch(() => undefined) : undefined;
   await transport.handleRequest(c.env.incoming, c.env.outgoing, body);
-  return new Response(null);
+  return RESPONSE_ALREADY_SENT;
 });
