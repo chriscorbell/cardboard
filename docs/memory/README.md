@@ -17,10 +17,9 @@ Read this index and [the protocol](protocol.md) when starting or resuming a sess
 - [CONTEXT.md](../../CONTEXT.md): the glossary. Terms are used with these meanings everywhere.
 - [Design](../design.md): the agreed v1 design, dated 2026-09-13, with links to the decision records.
 - [Decision records](../adr/): seven ADRs covering identity, credentials, egress, storage, the runner, Approval, and GitHub tokens.
-- [Design review](../design-review.md): eight findings against the design, dated 2026-09-13, not yet decided.
+- [Design review](../design-review.md): eight findings against the design, dated 2026-09-13, not yet decided. Read before implementing Sessions, GitHub writes, or Previews; it does not supersede accepted decisions.
 - [README](../../README.md): how to run, build, and deploy; the Status section says what is not built.
-- [Design review](../design-review.md): read before implementing Sessions, GitHub writes, or Previews. Records unresolved findings and proposed remedies from 2026-09-13; it does not supersede accepted decisions.
 
 ## Review record
 
-2026-09-13: ordinary review after the design review. Retained the design, glossary, and ADRs as accepted intent; unresolved discrepancies are recorded in [the review](../design-review.md). Deferred re-verification of `context/minicore-deployment-constraints.md`: its live fleet survey exceeds the incidental review bound, and this task changed no infrastructure. Its verification date is unchanged. `lessons/` and `work/` were empty. Next cursor: `context/` entry 1.
+2026-09-14: ordinary review after deduplicating the Design review row in this index. `context/minicore-deployment-constraints.md` deferred again: its live fleet survey exceeds the incidental review bound and this task changed no infrastructure, so its verification date is unchanged. `lessons/pnpm-11-build-approvals.md` checked against `pnpm-workspace.yaml`, `.npmrc`, and a passing `pnpm install --frozen-lockfile`; retained with the date refreshed. `work/2026-09-14-first-implementation.md` checked and retained: its close condition is met, but its next action (design-review findings 3, 5, and 6) is still open. Next cursor: `context/` entry 1.
