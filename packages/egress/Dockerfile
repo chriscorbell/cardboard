@@ -8,7 +8,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json .
 COPY packages/egress/package.json packages/egress/
 RUN pnpm install --frozen-lockfile --filter @cardboard/egress --config.confirmModulesPurge=false
 COPY packages/egress packages/egress
-RUN pnpm --filter @cardboard/egress build && pnpm install --frozen-lockfile --prod --filter @cardboard/egress --config.confirmModulesPurge=false
+RUN pnpm --filter @cardboard/egress build && pnpm install --frozen-lockfile --prod --filter @cardboard/egress --config.confirmModulesPurge=false && mkdir -p packages/egress/node_modules
 
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production PORT=8787
