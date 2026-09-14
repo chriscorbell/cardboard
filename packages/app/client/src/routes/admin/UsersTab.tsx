@@ -33,6 +33,15 @@ export function UsersTab() {
     mutationFn: ({ id, action }: { id: string; action: "revoke" | "reinstate" }) => request(`/admin/users/${id}/${action}`, { method: "POST" }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: keys.adminUsers }),
   });
+  // Resending changes nothing visible about the user, so the row says so for a moment instead.
+  const [resentTo, setResentTo] = useState<string | null>(null);
+  const resend = useMutation({
+    mutationFn: (id: string) => request(`/admin/users/${id}/resend-invitation`, { method: "POST" }),
+    onSuccess: (_data, id) => {
+      setResentTo(id);
+      setTimeout(() => setResentTo((current) => (current === id ? null : current)), 4000);
+    },
+  });
 
   return (
     <>
@@ -59,7 +68,7 @@ export function UsersTab() {
                 <p className="truncate text-[12.5px] text-ink-muted">{u.email}</p>
               </div>
               {u.role === "admin" ? <Chip tone="accent">Admin</Chip> : null}
-              <Chip tone={STATUS_TONE[u.status]}>{u.status}</Chip>
+              {resentTo === u.id ? <Chip tone="ok">invitation sent</Chip> : <Chip tone={STATUS_TONE[u.status]}>{u.status}</Chip>}
               <span className="w-16 text-right font-mono text-[11px] text-ink-faint">{relativeTime(u.createdAt)}</span>
               <Menu
                 align="right"
@@ -67,7 +76,10 @@ export function UsersTab() {
                 items={
                   u.status === "revoked"
                     ? [{ label: "Reinstate", onSelect: () => setStatus.mutate({ id: u.id, action: "reinstate" }) }]
-                    : [{ label: "Revoke access", danger: true, disabled: u.id === me.data?.user.id, onSelect: () => setStatus.mutate({ id: u.id, action: "revoke" }) }]
+                    : [
+                        ...(u.status === "invited" ? [{ label: "Resend invitation", onSelect: () => resend.mutate(u.id) }] : []),
+                        { label: "Revoke access", danger: true, disabled: u.id === me.data?.user.id, onSelect: () => setStatus.mutate({ id: u.id, action: "revoke" }) },
+                      ]
                 }
               />
             </li>
@@ -82,7 +94,7 @@ export function UsersTab() {
             invite.mutate();
           }}
         >
-          <Field label="Email" hint="They sign in with this address. The @handle is derived from it.">
+          <Field label="Email" hint="The invitation goes here, and they sign in with it. The @handle is derived from it.">
             <Input type="email" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" />
           </Field>
           <Field label="Name">
