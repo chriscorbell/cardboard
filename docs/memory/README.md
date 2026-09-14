@@ -17,9 +17,8 @@ Read this index and [the protocol](protocol.md) when starting or resuming a sess
 - [CONTEXT.md](../../CONTEXT.md): the glossary. Terms are used with these meanings everywhere.
 - [Design](../design.md): the agreed v1 design, dated 2026-09-13, with links to the decision records.
 - [Decision records](../adr/): seven ADRs covering identity, credentials, egress, storage, the runner, Approval, and GitHub tokens.
-- [Design review](../design-review.md): eight findings against the design, dated 2026-09-13, not yet decided.
+- [Design review](../design-review.md): eight findings against the design, dated 2026-09-13, not yet decided. Read before implementing Sessions, GitHub writes, or Previews; it does not supersede accepted decisions.
 - [README](../../README.md): how to run, build, and deploy; the Status section says what is not built.
-- [Design review](../design-review.md): read before implementing Sessions, GitHub writes, or Previews. Records unresolved findings and proposed remedies from 2026-09-13; it does not supersede accepted decisions.
 
 ## Review record
 
