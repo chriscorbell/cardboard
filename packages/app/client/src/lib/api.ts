@@ -9,6 +9,7 @@ import type {
   CreateCardInput,
   Me,
   MoveCardInput,
+  NotificationsView,
   SessionSummary,
   Settings,
   UpdateCardInput,
@@ -47,6 +48,7 @@ export const keys = {
   boards: ["boards"] as const,
   board: (slug: string) => ["board", slug] as const,
   card: (id: string) => ["card", id] as const,
+  notifications: ["notifications"] as const,
   adminUsers: ["admin", "users"] as const,
   adminBoards: ["admin", "boards"] as const,
   adminSettings: ["admin", "settings"] as const,
@@ -65,6 +67,24 @@ export function useBoard(slug: string) {
 }
 export function useCard(id: string | null) {
   return useQuery({ queryKey: keys.card(id ?? ""), queryFn: () => request<CardDetail>(`/cards/${id}`), enabled: Boolean(id) });
+}
+
+// The bell lives outside any board, so it polls rather than riding a board's event stream.
+export function useNotifications() {
+  return useQuery({
+    queryKey: keys.notifications,
+    queryFn: () => request<NotificationsView>("/notifications"),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids?: string[]) => request<NotificationsView>("/notifications/read", { method: "POST", body: JSON.stringify(ids ? { ids } : {}) }),
+    onSuccess: (view) => qc.setQueryData(keys.notifications, view),
+  });
 }
 
 export function useCreateCard(slug: string) {

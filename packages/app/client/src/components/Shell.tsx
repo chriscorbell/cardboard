@@ -7,6 +7,7 @@ import { useAuth } from "../lib/auth";
 import { Avatar, cx } from "./ui";
 import { Wordmark } from "./Wordmark";
 import { Menu } from "./Menu";
+import { Notifications } from "./Notifications";
 
 export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const boards = useBoards();
@@ -50,6 +51,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
               <span className="hidden sm:inline">Admin</span>
             </NavLink>
           ) : null}
+          <Notifications />
           <Menu
             align="right"
             trigger={

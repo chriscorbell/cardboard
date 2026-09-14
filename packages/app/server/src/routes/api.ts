@@ -9,6 +9,7 @@ import {
   createCardSchema,
   createCommentSchema,
   inviteUserSchema,
+  markNotificationsReadSchema,
   moveCardSchema,
   settingsSchema,
   updateCardSchema,
@@ -30,6 +31,7 @@ import { inviteUser, listUsers, setUserStatus } from "../services/users.js";
 import { subscribe } from "../services/realtime.js";
 import { cancelSession, listAllSessions, listBoardSessions } from "../services/orchestrator.js";
 import { ApprovalError, approveCard, listApprovals } from "../services/approvals.js";
+import { listNotifications, markNotificationsRead } from "../services/notifications.js";
 import { backupsView, takeSnapshot } from "../services/backup.js";
 import { installationStatus, parseRepoUrl } from "../services/github.js";
 
@@ -62,6 +64,15 @@ api.post("/me/refresh", async (c) => {
 });
 
 api.get("/boards", async (c) => c.json(await listBoardsForUser(c.get("user"))));
+
+api.get("/notifications", async (c) => c.json(await listNotifications(c.get("user"))));
+
+// An empty body means "mark everything read"; a list of ids marks just those.
+api.post("/notifications/read", async (c) => {
+  const parsed = markNotificationsReadSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: "invalid" }, 400);
+  return c.json(await markNotificationsRead(c.get("user"), parsed.data.ids));
+});
 
 api.get("/boards/:slug", async (c) => {
   const board = await getBoardBySlug(c.req.param("slug"));

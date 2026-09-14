@@ -60,6 +60,10 @@ export const TRIGGER_KINDS = [
 ] as const;
 export type TriggerKind = (typeof TRIGGER_KINDS)[number];
 
+// What the app notifies a user about. Every kind also sends that user an email.
+export const NOTIFICATION_KINDS = ["mention", "card_moved"] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
 export type ActorKind = "user" | "agent" | "system";
 
 export interface User {
@@ -166,6 +170,25 @@ export interface Approval {
   invalidatedAt: string | null;
 }
 
+export interface Notification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  actorName: string;
+  actorAvatarUrl: string | null;
+  boardSlug: string;
+  cardId: string;
+  cardTitle: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationsView {
+  unread: number;
+  notifications: Notification[];
+}
+
 export interface AgentProfile {
   name: string;
   avatarUrl: string | null;
@@ -254,6 +277,9 @@ export const upsertBoardSchema = z.object({
 });
 
 export const boardMembersSchema = z.object({ userIds: z.array(z.string()) });
+
+// No ids means "mark everything read".
+export const markNotificationsReadSchema = z.object({ ids: z.array(z.string()).optional() });
 
 export const settingsSchema = z.object({
   agentName: z.string().trim().min(1).max(40).optional(),

@@ -77,7 +77,11 @@ Sessions reach Cardboard through an MCP server over HTTP with a session-scoped b
 
 ## Notifications
 
-Resend sends email from `milo@cardboard.xode.cc` (the verified sending domain is `cardboard.xode.cc`) with the sender name set to the Agent's name. Triggers for email: a Mention, and a Card move for the Card's creator. Each email carries the Comment body and a deep link to the Card. There is no inbound email; reply-to is a no-reply address. The Admin receives the same emails as any other User.
+Triggers: a Mention, and a Card move for the Card's creator. Each trigger both sends an email and records an in-app notification, so the two never disagree. A User is never notified of their own action, and a revoked User is not notified at all.
+
+Resend sends email from `milo@cardboard.xode.cc` (the verified sending domain is `cardboard.xode.cc`) with the sender name set to the Agent's name. Each email carries the Comment body and a deep link to the Card. There is no inbound email; reply-to is a no-reply address. The Admin receives the same emails as any other User.
+
+In the app a bell beside the avatar carries a badge with the unread count and opens a panel of the 50 most recent notifications, newest first, with unread ones marked. Opening one marks it read and goes to its Card; the panel can also mark everything read. The panel polls rather than riding a Board's event stream, because it is visible on every page including those outside a Board. A notification is only ever shown to its own User, and only while that User can still open the Board it came from.
 
 ## Admin panel, v1 scope
 
