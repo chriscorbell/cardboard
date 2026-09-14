@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
-import { ChevronDown, LogOut, Settings2 } from "lucide-react";
+import { ChevronDown, LogOut, Settings2, UserRound } from "lucide-react";
 import type { Me } from "@cardboard/shared";
 import { useBoards } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -13,7 +13,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const slug = /^\/b\/([^/]+)/.exec(location.pathname)?.[1];
-  const { signOut, mode } = useAuth();
+  const { signOut, mode, openProfile } = useAuth();
   const current = boards.data?.find((b) => b.slug === slug);
   const isAdmin = location.pathname.startsWith("/admin");
 
@@ -59,7 +59,8 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
             }
             items={[
               { label: me.user.email, disabled: true },
-              ...(mode === "clerk" ? [{ label: "Sign out", icon: <LogOut className="size-4" strokeWidth={1.75} />, onSelect: () => void signOut(), separator: true }] : []),
+              ...(mode === "clerk" && openProfile ? [{ label: "Manage account", icon: <UserRound className="size-4" strokeWidth={1.75} />, onSelect: () => openProfile(), separator: true }] : []),
+              ...(mode === "clerk" ? [{ label: "Sign out", icon: <LogOut className="size-4" strokeWidth={1.75} />, onSelect: () => void signOut() }] : []),
             ]}
           />
         </div>

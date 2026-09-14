@@ -15,6 +15,7 @@ type AuthValue = {
   mode: "dev" | "clerk";
   getToken: () => Promise<string | null>;
   signOut: () => Promise<void>;
+  openProfile?: () => void;
 };
 
 const AuthContext = createContext<AuthValue>({
@@ -32,7 +33,7 @@ export function DevAuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function ClerkBridge({ children, getToken, signOut }: { children: ReactNode; getToken: () => Promise<string | null>; signOut: () => Promise<void> }) {
-  const value = useMemo<AuthValue>(() => ({ mode: "clerk", getToken, signOut }), [getToken, signOut]);
+export function ClerkBridge({ children, getToken, signOut, openProfile }: { children: ReactNode; getToken: () => Promise<string | null>; signOut: () => Promise<void>; openProfile: () => void }) {
+  const value = useMemo<AuthValue>(() => ({ mode: "clerk", getToken, signOut, openProfile }), [getToken, signOut, openProfile]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

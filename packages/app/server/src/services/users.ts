@@ -107,7 +107,18 @@ export async function activateFromClerk(input: {
     .from(schema.users)
     .where(eq(schema.users.clerkUserId, input.clerkUserId))
     .get();
-  if (byClerk) return byClerk.status === "revoked" ? null : toUser(byClerk);
+  if (byClerk) {
+    if (byClerk.status === "revoked") return null;
+    // Profile changes made in Clerk (avatar, name) flow back on the next token refresh.
+    if (byClerk.avatarUrl !== (input.avatarUrl ?? null) || (input.name && byClerk.name !== input.name)) {
+      await db
+        .update(schema.users)
+        .set({ avatarUrl: input.avatarUrl ?? null, name: input.name || byClerk.name })
+        .where(eq(schema.users.id, byClerk.id));
+      return getUser(byClerk.id);
+    }
+    return toUser(byClerk);
+  }
   const invited = await findUserByEmail(input.email);
   if (!invited || invited.status === "revoked") return null;
   await db

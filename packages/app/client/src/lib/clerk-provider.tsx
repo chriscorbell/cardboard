@@ -1,4 +1,4 @@
-import { ClerkProvider, SignIn, useAuth as useClerkAuth, useUser } from "@clerk/react";
+import { ClerkProvider, SignIn, useAuth as useClerkAuth, useClerk, useUser } from "@clerk/react";
 import { useCallback, useEffect, type ReactNode } from "react";
 import { ClerkBridge, clerkPublishableKey } from "./auth";
 import { setTokenProvider } from "./api";
@@ -6,7 +6,9 @@ import { setTokenProvider } from "./api";
 function Bridge({ children }: { children: ReactNode }) {
   const { getToken, signOut, isLoaded, isSignedIn } = useClerkAuth();
   const { user } = useUser();
+  const clerk = useClerk();
   const get = useCallback(() => getToken(), [getToken]);
+  const openProfile = useCallback(() => clerk.openUserProfile(), [clerk]);
   const out = useCallback(async () => {
     await signOut();
   }, [signOut]);
@@ -22,7 +24,7 @@ function Bridge({ children }: { children: ReactNode }) {
     );
   }
   return (
-    <ClerkBridge getToken={get} signOut={out}>
+    <ClerkBridge getToken={get} signOut={out} openProfile={openProfile}>
       {children}
     </ClerkBridge>
   );
