@@ -245,11 +245,31 @@ export async function listAllSessions(limit = 100): Promise<(SessionSummary & { 
 
 // Called once at boot: anything that was active when the process died is reconciled here.
 export async function recoverOnBoot(): Promise<void> {
-  // In noop mode there are no containers to reconcile against, so recorded sessions are left alone.
-  const stale = runner.mode === "noop" ? [] : await db.select().from(schema.sessions).where(inArray(schema.sessions.status, [...ACTIVE]));
-  for (const s of stale) {
-    // Without runner inventory reconciliation (not built yet) the safe choice is to fail and let pending triggers re-dispatch.
-    await endSession(s.id, "failed", "The app restarted while this session was active.");
+  // Reconcile recorded Sessions against the runner's container inventory. A Session whose
+  // container is still running keeps its Claim and gets a fresh wall clock; one whose container
+  // is gone ended while the app was down, and its exit was never reported.
+  if (runner.mode !== "noop") {
+    const active = await db.select().from(schema.sessions).where(inArray(schema.sessions.status, [...ACTIVE]));
+    if (active.length > 0) {
+      const settings = await getSettings();
+      let inventory: Awaited<ReturnType<typeof runner.inventory>> | null = null;
+      try {
+        inventory = await runner.inventory();
+      } catch (err) {
+        console.error("[orchestrator] runner inventory unavailable at boot; leaving sessions as they are", err);
+      }
+      if (inventory) {
+        for (const s of active) {
+          const item = inventory.find((i) => i.sessionId === s.id);
+          if (item && item.state === "running") {
+            const elapsedMin = s.startedAt ? (Date.now() - new Date(s.startedAt).getTime()) / 60_000 : 0;
+            armWallClock(s.id, Math.max(1, settings.sessionWallClockMinutes - elapsedMin));
+          } else {
+            await endSession(s.id, "failed", "The app restarted and the session's container was gone; its exit was not reported.");
+          }
+        }
+      }
+    }
   }
   const pending = await db
     .selectDistinct({ cardId: schema.triggers.cardId })

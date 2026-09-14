@@ -12,10 +12,18 @@ export interface StartSessionRequest {
   prompt: string;
 }
 
+export interface RunnerInventoryItem {
+  containerId: string;
+  sessionId: string;
+  state: string;
+  status: string;
+}
+
 export interface RunnerClient {
   readonly mode: "http" | "noop";
   start(req: StartSessionRequest): Promise<{ containerId: string }>;
   stop(containerId: string): Promise<void>;
+  inventory(): Promise<RunnerInventoryItem[]>;
 }
 
 class HttpRunner implements RunnerClient {
@@ -43,6 +51,11 @@ class HttpRunner implements RunnerClient {
     });
     if (!res.ok && res.status !== 404) throw new Error(`runner stop failed: ${res.status}`);
   }
+  async inventory(): Promise<RunnerInventoryItem[]> {
+    const res = await fetch(`${this.baseUrl}/sessions`, { headers: this.headers() });
+    if (!res.ok) throw new Error(`runner inventory failed: ${res.status}`);
+    return (await res.json()) as RunnerInventoryItem[];
+  }
 }
 
 // Used when no runner is configured: the Session is recorded and shown, but nothing runs.
@@ -52,6 +65,9 @@ class NoopRunner implements RunnerClient {
     return { containerId: `noop-${req.sessionId}` };
   }
   async stop(): Promise<void> {}
+  async inventory(): Promise<RunnerInventoryItem[]> {
+    return [];
+  }
 }
 
 export const runner: RunnerClient = env.runnerUrl

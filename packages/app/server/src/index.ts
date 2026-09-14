@@ -17,8 +17,9 @@ import { ensureSeed } from "./seed.js";
 const app = new Hono();
 app.use("*", logger((msg) => console.log(msg)));
 app.get("/healthz", (c) => c.json({ ok: true }));
-app.route("/api", api);
+// Internal routes are registered before the user API so its auth middleware never sees them.
 app.route("/api/internal", internal);
+app.route("/api", api);
 app.route("/mcp", mcp);
 
 // Production: serve the built client. In dev, Vite serves it and proxies /api here.
