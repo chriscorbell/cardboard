@@ -83,6 +83,8 @@ Triggers: a Mention, and a Card move for the Card's creator. Each trigger both s
 
 Resend sends email from `milo@cardboard.xode.cc` (the verified sending domain is `cardboard.xode.cc`) with the sender name set to the Agent's name. Each email carries the Comment body and a deep link to the Card. There is no inbound email; reply-to is a no-reply address. The Admin receives the same emails as any other User.
 
+An Invitation sends its own email, outside the notification triggers: it names the inviting Admin, the Agent, and the address to sign in with, and links to the app rather than to a Card. It goes out when an address is first invited, when an already-invited address is invited again, and when a revoked User is reinstated — the three cases that leave someone waiting to sign in. An active User has already accepted, so re-inviting them sends nothing. The Admin panel can send the invitation again without re-entering the address.
+
 In the app a bell beside the avatar carries a badge with the unread count and opens a panel of the 50 most recent notifications, newest first, with unread ones marked. Opening one marks it read and goes to its Card; the panel can also mark everything read. The panel polls rather than riding a Board's event stream, because it is visible on every page including those outside a Board. A notification is only ever shown to its own User, and only while that User can still open the Board it came from.
 
 ## Admin panel, v1 scope
@@ -115,7 +117,7 @@ These cannot be automated from inside Cardboard: adding the two tunnel hostnames
 
 ## Status
 
-As of 2026-09-14 the stack runs on minicore at `https://cardboard.xode.cc` and the loop has completed on two repositories, including this one: card, Session, pull request, Approval, merge by Cardboard, deploy. Not yet built: runner-hosted Previews and their cookie flow, Provider fallback, invitation emails, child-Card dispatch, and Codex through the egress proxy. [docs/design-review.md](design-review.md) records which review findings are resolved.
+As of 2026-09-14 the stack runs on minicore at `https://cardboard.xode.cc` and the loop has completed on two repositories, including this one: card, Session, pull request, Approval, merge by Cardboard, deploy. Not yet built: runner-hosted Previews and their cookie flow, Provider fallback, child-Card dispatch, and Codex through the egress proxy. [docs/design-review.md](design-review.md) records which review findings are resolved.
 
 ## Out of scope for v1
 

@@ -29,7 +29,8 @@ import { canAccessBoard, createBoard, getBoardById, getBoardBySlug, listAllBoard
 import { ConflictError, createCard, getCard, listCards, listChildren, moveCard, updateCard } from "../services/cards.js";
 import { addAttachment, createComment, getAttachment, getComment, listComments, updateComment } from "../services/comments.js";
 import { getAgentProfile, getSettings, updateSettings } from "../services/settings.js";
-import { inviteUser, listUsers, setUserStatus } from "../services/users.js";
+import { getUser, inviteUser, listUsers, setUserStatus } from "../services/users.js";
+import { sendInvitation } from "../services/email.js";
 import { subscribe } from "../services/realtime.js";
 import { cancelSession, getSession, listAllSessions, listBoardSessions } from "../services/orchestrator.js";
 import { runner } from "../services/runner-client.js";
@@ -245,7 +246,11 @@ const admin = new Hono<{ Variables: AuthVariables }>();
 admin.use("*", requireAdmin);
 
 admin.get("/users", async (c) => c.json(await listUsers()));
-admin.post("/users", zValidator("json", inviteUserSchema), async (c) => c.json(await inviteUser(c.req.valid("json")), 201));
+admin.post("/users", zValidator("json", inviteUserSchema), async (c) => {
+  const user = await inviteUser(c.req.valid("json"));
+  await sendInvitation(user, c.get("user"));
+  return c.json(user, 201);
+});
 admin.post("/users/:id/revoke", async (c) => {
   if (c.req.param("id") === c.get("user").id) return c.json({ error: "cannot revoke yourself" }, 400);
   await setUserStatus(c.req.param("id"), "revoked");
@@ -253,7 +258,15 @@ admin.post("/users/:id/revoke", async (c) => {
 });
 admin.post("/users/:id/reinstate", async (c) => {
   await setUserStatus(c.req.param("id"), "invited");
+  const user = await getUser(c.req.param("id"));
+  if (user) await sendInvitation(user, c.get("user"));
   return c.json({ ok: true });
+});
+// The first invitation can be missed; an Admin can send it again without re-entering the address.
+admin.post("/users/:id/resend-invitation", async (c) => {
+  const user = await getUser(c.req.param("id"));
+  if (!user) return c.json({ error: "not_found" }, 404);
+  return c.json({ sent: await sendInvitation(user, c.get("user")) });
 });
 
 admin.get("/boards", async (c) => {
