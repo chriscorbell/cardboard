@@ -52,5 +52,7 @@ On `chriscorbell/cardboard-sandbox` with both GitHub Apps installed and the `car
 
 Remaining before a client board: design-review findings 3 (child-card dispatch), 5 (preview cookie scope) and 6 (network isolation between workloads and the runner); runner-hosted previews; a real run of the nightly sweep; Codex through the egress proxy. Onboarding steps for a new repository live in `skills/cardboard-onboard`.
 
+A Session then ran against this repository itself on 2026-09-14: it read the board over MCP, branched, committed a documentation repair, passed the acceptance command, and opened a pull request with `gh`. Approval and merge on this repository are unobserved, as is any Preview: the board is in external preview mode and this repository's CI publishes images on push to `main` rather than deploying per-pull-request previews.
+
 Next action: decide findings 3, 5, and 6 with the user, then onboard the first real project with the skill.
 Close when: the stack runs on minicore behind `cardboard.xode.cc` and one real Session completes against a test repository.
