@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7
+# The default Session image. One image for every board; a board may override it.
+# Toolchains: Node (pnpm, bun), Python (uv), Go, git, gh, Claude Code, Codex CLI.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl git gnupg jq openssh-client build-essential pkg-config \
+      python3 python3-venv unzip xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# gh
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update && apt-get install -y --no-install-recommends gh && rm -rf /var/lib/apt/lists/*
+
+# Node 24 + pnpm + bun
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/* \
+    && corepack enable && corepack prepare pnpm@11.25.0 --activate
+RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
+
+# Go
+ARG GO_VERSION=1.25.1
+RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
+
+# Provider CLIs
+RUN npm install -g @anthropic-ai/claude-code @openai/codex
+
+RUN useradd -m -u 1001 -s /bin/bash agent && mkdir -p /work && chown agent:agent /work
+COPY --chmod=755 images/agent/entrypoint.sh /usr/local/bin/cardboard-session
+USER agent
+WORKDIR /work
+ENV HOME=/home/agent
+ENTRYPOINT ["cardboard-session"]

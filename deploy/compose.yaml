@@ -1,0 +1,68 @@
+# Cardboard stack for minicore. Copy this directory to chriscorbell/stacks/cardboard and run
+# `docker compose up -d`. Watchtower updates app, runner, egress, and preview-router on each push
+# to main; session and preview containers carry the opt-out label and are managed by the runner.
+#
+# Networks: `control` carries app <-> runner <-> egress traffic. `workload` is where session and
+# preview containers live; they can reach app (MCP) and egress but never the runner.
+
+name: cardboard
+
+services:
+  app:
+    image: ghcr.io/chriscorbell/cardboard-app:latest
+    restart: unless-stopped
+    ports:
+      - "3070:3070"
+    environment:
+      CARDBOARD_AUTH: clerk
+      CARDBOARD_PUBLIC_URL: https://cardboard.xode.cc
+      CARDBOARD_ADMIN_EMAIL: ${CARDBOARD_ADMIN_EMAIL}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      CARDBOARD_EMAIL_FROM: "Milo <cardboard@xode.cc>"
+      CARDBOARD_RUNNER_URL: http://runner:3071
+      CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
+    volumes:
+      - ../../data/cardboard/app:/data
+    networks: [control, workload]
+
+  runner:
+    image: ghcr.io/chriscorbell/cardboard-runner:latest
+    restart: unless-stopped
+    environment:
+      CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
+      CARDBOARD_APP_URL: http://app:3070
+      CARDBOARD_MCP_URL: http://app:3070/mcp
+      CARDBOARD_EGRESS_URL: http://egress:8787
+      CARDBOARD_WORKLOAD_NETWORK: cardboard_workload
+      CARDBOARD_LOG_DIR: /data/logs
+      CODEX_AUTH_FILE: /home/chris/docker/data/cardboard/secrets/codex-auth.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../../data/cardboard/runner:/data
+    networks: [control]
+
+  egress:
+    image: ghcr.io/chriscorbell/cardboard-egress:latest
+    restart: unless-stopped
+    environment:
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+    networks: [control, workload]
+
+  preview-router:
+    image: ghcr.io/chriscorbell/cardboard-preview-router:latest
+    restart: unless-stopped
+    ports:
+      - "3073:3072"
+    environment:
+      CARDBOARD_APP_URL: http://app:3070
+      CARDBOARD_PUBLIC_URL: https://cardboard.xode.cc
+      CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
+      CARDBOARD_PREVIEW_SECRET: ${CARDBOARD_PREVIEW_SECRET}
+    networks: [control, workload]
+
+networks:
+  control:
+  workload:
+    name: cardboard_workload

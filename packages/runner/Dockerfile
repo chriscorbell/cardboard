@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1.7
+FROM node:24-alpine AS base
+RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
+WORKDIR /repo
+
+FROM base AS build
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY packages/runner/package.json packages/runner/
+RUN pnpm install --frozen-lockfile --filter @cardboard/runner --config.confirmModulesPurge=false
+COPY packages/runner packages/runner
+RUN pnpm --filter @cardboard/runner build && pnpm install --frozen-lockfile --prod --filter @cardboard/runner --config.confirmModulesPurge=false
+
+FROM node:24-alpine AS runtime
+ENV NODE_ENV=production PORT=3071
+WORKDIR /repo/packages/runner
+COPY --from=build /repo/node_modules /repo/node_modules
+COPY --from=build /repo/packages/runner/node_modules ./node_modules
+COPY --from=build /repo/packages/runner/dist ./dist
+COPY packages/runner/package.json ./package.json
+EXPOSE 3071
+CMD ["node", "dist/index.js"]
