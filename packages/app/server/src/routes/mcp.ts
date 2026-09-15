@@ -17,6 +17,7 @@ import { createComment, getAttachment, listComments } from "../services/comments
 import { getUsersByIds } from "../services/users.js";
 import { recordEvent } from "../services/events.js";
 import { publish } from "../services/realtime.js";
+import { previewUrlFor, startPreview } from "../services/previews.js";
 
 type SessionRow = typeof schema.sessions.$inferSelect;
 
@@ -139,6 +140,29 @@ function buildServer(session: SessionRow): McpServer {
       if (session.kind !== "card" || !session.cardId) throw new Error("only card sessions can set work state");
       await setCardWorkState(session.cardId, { prUrl: pr_url, prNumber: pr_number, previewUrl: preview_url });
       return { content: [{ type: "text", text: "ok" }] };
+    },
+  );
+
+  server.registerTool(
+    "request_preview",
+    {
+      description: "Build this card's branch and host it as a preview (runner preview mode only). Returns the URL at once; the build finishes in the background. Push the branch first.",
+      inputSchema: {},
+    },
+    async () => {
+      if (session.kind !== "card" || !session.cardId) throw new Error("only card sessions can request a preview");
+      const preview = await startPreview(session.cardId);
+      const url = previewUrlFor(preview.host);
+      await setCardWorkState(session.cardId, { previewUrl: url });
+      await recordEvent({ boardId: session.boardId, cardId: session.cardId, actor, type: "preview.requested", payload: { previewId: preview.id, host: preview.host } });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Building ${preview.branch} from its Dockerfile. The preview will answer at ${url} once the build finishes; until then it shows a holding page. The URL is already recorded on the card.`,
+          },
+        ],
+      };
     },
   );
 

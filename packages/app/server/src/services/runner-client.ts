@@ -17,6 +17,19 @@ export interface StartSessionRequest {
   gitEmail: string;
 }
 
+export interface StartPreviewRequest {
+  previewId: string;
+  boardSlug: string;
+  cardId: string;
+  host: string;
+  repoUrl: string;
+  branch: string;
+  githubToken: string | null;
+  dockerfile: string;
+  port: number;
+  env: Record<string, string>;
+}
+
 export interface RunnerInventoryItem {
   containerId: string;
   sessionId: string;
@@ -40,6 +53,9 @@ export interface RunnerClient {
   stop(containerId: string): Promise<void>;
   inventory(): Promise<RunnerInventoryItem[]>;
   logSlice(sessionId: string, offset: number): Promise<RunnerLogSlice>;
+  // The runner accepts a Preview build and reports the outcome later on /api/internal/previews.
+  startPreview(req: StartPreviewRequest): Promise<void>;
+  stopPreview(previewId: string): Promise<void>;
 }
 
 const NO_LOG: RunnerLogSlice = { exists: false, size: 0, offset: 0, nextOffset: 0, text: "", skipped: false };
@@ -81,6 +97,14 @@ class HttpRunner implements RunnerClient {
     if (!res.ok) throw new Error(`runner log failed: ${res.status}`);
     return (await res.json()) as RunnerLogSlice;
   }
+  async startPreview(req: StartPreviewRequest): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/previews`, { method: "POST", headers: this.headers(), body: JSON.stringify(req) });
+    if (!res.ok) throw new Error(`runner preview failed: ${res.status} ${await res.text()}`);
+  }
+  async stopPreview(previewId: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/previews/${encodeURIComponent(previewId)}`, { method: "DELETE", headers: this.headers() });
+    if (!res.ok && res.status !== 404) throw new Error(`runner preview removal failed: ${res.status}`);
+  }
 }
 
 // Used when no runner is configured: the Session is recorded and shown, but nothing runs.
@@ -96,6 +120,8 @@ class NoopRunner implements RunnerClient {
   async logSlice(): Promise<RunnerLogSlice> {
     return NO_LOG;
   }
+  async startPreview(): Promise<void> {}
+  async stopPreview(): Promise<void> {}
 }
 
 export const runner: RunnerClient = env.runnerUrl

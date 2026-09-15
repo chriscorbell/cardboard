@@ -12,6 +12,7 @@ import { buildSessionPrompt } from "./prompt.js";
 import { botIdentity, githubConfigured, mintInstallationToken, parseRepoUrl } from "./github.js";
 import { providerAfterFailure, providerForDispatch } from "./fallback.js";
 import { readProviderLimits } from "./provider-limits.js";
+import { removePreviewForCard } from "./previews.js";
 
 const ACTIVE = ["queued", "starting", "running"] as const;
 
@@ -286,8 +287,10 @@ async function planFallback(row: typeof schema.sessions.$inferSelect, status: Se
   });
 }
 
-// Human closure: cancel the Claim holder, drop queued Triggers, and clear the re-run flag.
+// Human closure: cancel the Claim holder, drop queued Triggers, and clear the re-run flag. A
+// runner-hosted Preview is torn down with the Card; nothing reviews a closed Card's deployment.
 export async function closeCardWork(cardId: string, actor: Actor): Promise<void> {
+  await removePreviewForCard(cardId).catch((err) => console.error("[preview] could not remove on close", err));
   const t = coalesceTimers.get(cardId);
   if (t) clearTimeout(t);
   coalesceTimers.delete(cardId);

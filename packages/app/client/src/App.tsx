@@ -4,6 +4,7 @@ import { BoardsPage } from "./routes/BoardsPage";
 import { BoardPage } from "./routes/BoardPage";
 import { AdminPage } from "./routes/admin/AdminPage";
 import { NotInvitedPage } from "./routes/NotInvitedPage";
+import { PreviewAuthPage } from "./routes/PreviewAuthPage";
 import { Shell } from "./components/Shell";
 import { Skeleton } from "./components/ui";
 
@@ -25,6 +26,7 @@ export function App() {
     <Shell me={me.data}>
       <Routes>
         <Route path="/" element={<BoardsPage />} />
+        <Route path="/preview-auth" element={<PreviewAuthPage />} />
         <Route path="/b/:slug" element={<BoardPage />} />
         <Route path="/b/:slug/c/:cardId" element={<BoardPage />} />
         <Route path="/admin/*" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate to="/" replace />} />

@@ -4,6 +4,14 @@ import { getSettings } from "./settings.js";
 
 // The global workflow template. Board-specific instructions live in the repo's AGENTS.md and in the
 // Admin's per-board prompt append. This is deliberately plain prose the model reads once.
+// Step 5's preview sentence. The two modes need different work of the Session: in runner mode one
+// tool call is the whole job, in external mode the URL has to come from the project's own CI.
+export function previewInstruction(mode: "external" | "runner"): string {
+  return mode === "runner"
+    ? "Make a preview available with the request_preview tool once the branch is pushed: Cardboard builds the branch's Dockerfile and hosts it, and records the URL on the card for you."
+    : "Make a preview available (external preview mode) and record its URL the same way; if the project's CI publishes none, say so plainly rather than inventing one.";
+}
+
 export async function buildSessionPrompt(input: {
   board: typeof schema.boards.$inferSelect;
   card: typeof schema.cards.$inferSelect;
@@ -28,7 +36,7 @@ Follow this workflow in order.
 2. Classify the trigger batch: new request, clarification reply, review feedback, approval, human move, or noise such as a typo fix. If it is noise, end without posting.
 3. Plan. Post nothing yet.
 4. Implement on branch ${input.card.branch ?? "(assigned by Cardboard)"} with tests. Never push to the default branch; the ruleset rejects it anyway.
-5. Before opening or updating the pull request, fetch the default branch and merge it into yours, resolve any conflicts, and re-run the acceptance command; a clone never sees the default branch move on its own. Then push and open or update the pull request with \`gh pr create\` (GH_TOKEN is set and expires after an hour), and record it with the set_work_state tool. Files under .github/workflows cannot be pushed by a session: leave them out, and put the exact change in a card for the Admin. Make a preview available (${input.board.previewMode} preview mode) and record its URL the same way.
+5. Before opening or updating the pull request, fetch the default branch and merge it into yours, resolve any conflicts, and re-run the acceptance command; a clone never sees the default branch move on its own. Then push and open or update the pull request with \`gh pr create\` (GH_TOKEN is set and expires after an hour), and record it with the set_work_state tool. Files under .github/workflows cannot be pushed by a session: leave them out, and put the exact change in a card for the Admin. ${previewInstruction(input.board.previewMode)}
 6. Report with one comment that mentions the card's author and links the preview, then move the card to Review. Merging is not yours to do: it happens when a member presses Approve.
 7. Run a light hygiene pass over the cards you touched.
 

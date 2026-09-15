@@ -30,6 +30,7 @@ When the work is done, the Session opens a pull request and moves the card to Re
 - **Sessions that see the whole board**: an MCP server exposes the ledger of active Sessions, every card, comments, and attachments, plus tools to comment, move, and create cards.
 - **Safe by construction**: Sessions run with resource limits, a wall clock, a one-hour repository token, and no access to your provider credentials, which stay in a proxy.
 - **Approvals bound to code**: an Approval records the pull request commit the reviewer saw. A later push voids it.
+- **Previews per card**: in runner preview mode Cardboard builds the branch's Dockerfile and hosts it at the card's own hostname, open only to that board's members through a single-use code and a host-only cookie, and taken down when the card reaches Done.
 - **Provider fallback**: when a subscription runs out of usage, the proxy sees the refusal and the card is picked up again on the other provider.
 - **Notifications** for mentions and card moves: a bell with an unread badge in the app, and the same thing by email through Resend.
 - **Invite-only access** with Clerk. Only email addresses you add can sign in, each member only sees their boards, and an invitation email tells them where to do it.
@@ -92,6 +93,7 @@ Copy `packages/app/.env.example` to `packages/app/.env`. The variables that matt
 | `GITHUB_SESSIONS_APP_*`, `GITHUB_MERGE_APP_*` | The two GitHub Apps. See [deploy/github-apps.md](deploy/github-apps.md). |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Held by the egress proxy only. Create it with `claude setup-token`. |
 | `CARDBOARD_BACKUP_HOUR`, `CARDBOARD_BACKUP_KEEP` | Daily snapshot hour and how many to keep. |
+| `CARDBOARD_PREVIEW_SECRET`, `CARDBOARD_PREVIEW_HOST_PATTERN` | Signs preview cookies, and the preview hostname shape. Needed only for boards in `runner` preview mode. |
 
 ## Deploying
 
@@ -112,4 +114,4 @@ Each board points at one repository. To prepare one, run the `cardboard-onboard`
 
 ## Status
 
-The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Still to come: runner-hosted previews. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.
+The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Runner-hosted previews are built but not yet switched on: they need a wildcard preview hostname on the tunnel, a certificate that covers it, and `CARDBOARD_PREVIEW_SECRET`. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.

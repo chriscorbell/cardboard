@@ -12,6 +12,8 @@ RUN pnpm --filter @cardboard/runner build && pnpm install --frozen-lockfile --pr
 
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production PORT=3071
+# git clones a Preview's branch; busybox tar packs it into a build context for the Docker daemon.
+RUN apk add --no-cache git
 WORKDIR /repo/packages/runner
 COPY --from=build /repo/node_modules /repo/node_modules
 COPY --from=build /repo/packages/runner/node_modules ./node_modules
