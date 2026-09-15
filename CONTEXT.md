@@ -67,7 +67,7 @@ The coding-agent product a Session runs on: Claude Code or Codex.
 _Avoid_: Model, backend, harness
 
 **Trigger**:
-A human change to a Board that starts or queues a Session on the affected Card: creating a Card, editing its description, posting a Comment, or moving it between Columns. kardboard itself writes one kind, `provider_fallback`, when a Session's Provider ran out of usage and the Card should be picked up again on the other one.
+A human change to a Board that starts or queues a Session on the affected Card: creating a Card, editing its description, posting a Comment, or moving it between Columns. kardboard itself writes three kinds and no more: `provider_fallback`, when a Session's Provider ran out of usage and the Card should be picked up again on the other one; `child_card_created`, on a Card a Session created as a child of another and left in Ready; and `children_done`, on a parent whose last child has reached Done.
 _Avoid_: Event, webhook, action
 
 **Claim**:

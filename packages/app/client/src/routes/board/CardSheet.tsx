@@ -4,6 +4,7 @@ import { ArrowUpRight, Check, ChevronDown, ExternalLink, FileText, GitBranch, Gi
 import { COLUMNS, COLUMN_LABELS, PRIORITIES, type ActivityEntry, type AgentProfile, type Attachment, type BoardView, type Card, type Column, type Comment, type Priority, type User } from "@cardboard/shared";
 import { useApproveCard, useCard, useCreateComment, useMe, useMoveCard, useUpdateCard, useUpdateComment, request, keys } from "../../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { Avatar, Button, Chip, cx, IconButton, Input, Skeleton, Textarea } from "../../components/ui";
 import { Menu } from "../../components/Menu";
 import { Markdown } from "../../components/Markdown";
@@ -174,6 +175,8 @@ function SheetBody({ slug, cardId, view, onClose }: { slug: string; cardId: stri
           <ReviewBlock card={card} agentName={view.agent.name} approvals={detail.data?.approvals ?? []} members={members} onApprove={() => approve.mutateAsync(card.id)} busy={approve.isPending} />
         ) : null}
 
+        {detail.data?.children.length ? <ChildCards slug={slug} cards={detail.data.children} agentName={view.agent.name} /> : null}
+
         <div className="px-6 pb-2 pt-6">
           <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">Comments</h3>
           {detail.isPending ? (
@@ -188,6 +191,38 @@ function SheetBody({ slug, cardId, view, onClose }: { slug: string; cardId: stri
         <Activity entries={detail.data?.activity ?? []} members={members} agentName={view.agent.name} />
       </div>
     </>
+  );
+}
+
+// The pieces a session split this request into. They run on their own, so this is where a person
+// sees how far the whole request has got without opening each child in turn.
+function ChildCards({ slug, cards, agentName }: { slug: string; cards: Card[]; agentName: string }) {
+  const navigate = useNavigate();
+  const open = cards.filter((c) => c.column !== "done").length;
+  return (
+    <div className="px-6 pt-6">
+      <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">Pieces of this request</h3>
+      <ul className="flex list-none flex-col gap-1.5 p-0">
+        {cards.map((c) => (
+          <li key={c.id}>
+            <button
+              type="button"
+              onClick={() => navigate(`/b/${slug}/c/${c.id}`)}
+              className="flex w-full items-center gap-2 rounded-card border border-line bg-bg px-3 py-2 text-left text-[13px] text-ink transition-colors hover:border-line-strong"
+            >
+              <span className="min-w-0 flex-1 truncate">{c.title}</span>
+              {c.activeSession ? <WorkingDot /> : null}
+              <Chip tone={c.column === "done" && c.outcome === "closed" ? "neutral" : COLUMN_TONES[c.column]}>
+                {c.column === "done" ? (c.outcome === "closed" ? "Closed" : "Merged") : COLUMN_LABELS[c.column]}
+              </Chip>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-[12px] text-ink-faint">
+        {open === 0 ? `Every piece is finished, so ${agentName} picks this card up again.` : `${open} of ${cards.length} still open. This card waits until the last one is done.`}
+      </p>
+    </div>
   );
 }
 
