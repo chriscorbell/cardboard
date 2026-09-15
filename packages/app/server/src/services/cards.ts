@@ -215,8 +215,8 @@ export async function moveCard(
       type: "card.moved",
       payload: { from: current.column, to: input.column },
     });
-    // Leaving Review invalidates any standing Approval: the next pull request needs a fresh one.
-    if (current.column === "review") {
+    // Leaving Review for anything but Done voids a standing Approval; Done is where a consumed Approval ends up.
+    if (current.column === "review" && input.column !== "done") {
       await db.update(schema.approvals).set({ invalidatedAt: new Date().toISOString() }).where(and(eq(schema.approvals.cardId, id), isNull(schema.approvals.invalidatedAt)));
     }
     // A human move to Done closes the card: the active Session is cancelled and nothing re-runs.
