@@ -40,4 +40,6 @@ The repository's `CARDBOARD_*` variables, `@cardboard/*` package names, GHCR ima
 
 On 2026-09-15 UTC, the existing Clerk instance moved to the root with all DNS records verified and both certificates issued. Google sign-in and Admin email-code sign-in succeeded. The Admin opened the rebuilt Preview on its new hostname. Clerk denied Preview origins on `/v1/client`; unknown Preview hosts returned 404. Resend verified the new domain and the existing sending key was restricted to it. Both GitHub Apps remained installed after the repository rename.
 
-Production Compose is applied. [PR 12](https://github.com/chriscorbell/kardboard/pull/12) holds the branding and legacy redirect implementation; its release remains tracked in the [work note](../memory/work/2026-09-15-kardboard-rebrand.md).
+[PR 12](https://github.com/chriscorbell/kardboard/pull/12) deployed as `f6b868b`. [CI](https://github.com/chriscorbell/kardboard/actions/runs/34926475377) passed validation and published all five images; all four production services were verified at that revision. Production browser checks confirmed the lowercase wordmark, authenticated Board access, and a fresh Preview authorization exchange. Both legacy app aliases returned path- and query-preserving 308 redirects.
+
+Card mq729n reached Done after verification and its Preview was retired. New Cards use the same `{card}.kardboard.cc` pattern. The local checkout, Compose stack folder, Board slug, and integration identifiers keep their existing names for compatibility.

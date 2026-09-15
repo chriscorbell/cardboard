@@ -15,3 +15,5 @@ Recheck when: the compose file moves, the runner's log directory changes, the ag
 - Session containers carry the label `cardboard.session=<id>`; `docker ps -a --filter label=cardboard.session` lists them. The runner removes them after exit.
 
 Preview host configuration and verification are recorded in [the preview runbook](../../runbooks/previews.md). Watchtower applies image updates only; applying PR 10 required separately updating the stacks Compose file to create `cardboard_preview` and wire the app secret and hostname pattern.
+
+The domain migration deployed as `f6b868b` on 2026-09-15 UTC. Before cutover, snapshot `cardboard-20260915T032551Z.db` was verified. Private environment backups are under `~/.local/state/cardboard/` on mbp and minicore. These are recovery artifacts, not the current deploy configuration.
