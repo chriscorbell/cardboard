@@ -5,7 +5,7 @@ Status: verified
 Scope: environment, minicore
 Verified: 2026-09-14
 Source: the deployment and Session runs of 2026-09-14; `deploy/compose.yaml`; `~/Code/stacks/cardboard/compose.yaml`
-Recheck when: the compose file moves, the runner's log directory changes, or the app image stops bundling `@libsql/client`
+Recheck when: the compose file moves, the runner's log directory changes, the app image stops bundling `@libsql/client`, or `images/agent/entrypoint.sh` stops passing `--output-format text`
 
 - Code deploys itself: push to `main`, CI publishes five images, Watchtower restarts the four services within a minute. Every push rebuilds all five images, so every service restarts on every push.
 - Secrets never leave `deploy/.env` on mbp except by `scp deploy/.env minicore:/home/chris/docker/stacks/cardboard/.env` followed by `docker compose up -d` in that directory. The compose file itself is committed in `chriscorbell/stacks` under `cardboard/`; `git pull` there before `up -d`.
