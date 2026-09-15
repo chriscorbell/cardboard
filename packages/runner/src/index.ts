@@ -72,12 +72,27 @@ const startSchema = z.object({
 
 const containerName = (sessionId: string) => `cardboard-session-${sessionId}`;
 
+// Nothing long-lived runs the agent image, so no watcher refreshes it. Pull before every start:
+// a no-op when the tag is current, and a fresh image the minute CI publishes one. If the registry
+// is unreachable, an image already on the host still starts the Session.
 async function ensureImage(image: string): Promise<void> {
-  const present = await docker.getImage(image).inspect().catch(() => null);
-  if (present) return;
-  console.log(`[runner] pulling ${image}`);
-  const stream = await docker.pull(image);
-  await new Promise<void>((resolve, reject) => docker.modem.followProgress(stream, (err) => (err ? reject(err) : resolve())));
+  try {
+    const stream = await docker.pull(image);
+    await new Promise<void>((resolve, reject) => docker.modem.followProgress(stream, (err) => (err ? reject(err) : resolve())));
+  } catch (err) {
+    const present = await docker.getImage(image).inspect().catch(() => null);
+    if (!present) throw err;
+    console.warn(`[runner] could not refresh ${image}; using the local copy`, (err as Error).message);
+  }
+}
+
+// Session containers that exited while the runner was down never got their post-exit cleanup.
+async function pruneExitedSessions(): Promise<void> {
+  const list = await docker.listContainers({ all: true, filters: { label: ["cardboard.session"], status: ["exited", "dead"] } });
+  for (const c of list) {
+    await docker.getContainer(c.Id).remove({ force: true }).catch(() => {});
+    console.log(`[runner] removed exited ${c.Names[0] ?? c.Id}`);
+  }
 }
 
 async function reportExit(sessionId: string, exitCode: number, reason?: string) {
@@ -216,5 +231,6 @@ function pruneLogs() {
 }
 pruneLogs();
 setInterval(pruneLogs, 6 * 3_600_000);
+void pruneExitedSessions().catch((err) => console.error("[runner] prune failed", err));
 
 serve({ fetch: app.fetch, port: env.port }, (info) => console.log(`cardboard runner listening on :${info.port}`));
