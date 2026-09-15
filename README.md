@@ -116,4 +116,4 @@ Each board points at one repository. To prepare one, run the `cardboard-onboard`
 
 ## Status
 
-The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Runner-hosted previews are built but not yet switched on: they need a wildcard preview hostname on the tunnel, a certificate that covers it, and `CARDBOARD_PREVIEW_SECRET`. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.
+The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Runner-hosted previews are configured on minicore with `{card}-preview.xode.cc` URLs; [the preview runbook](docs/runbooks/previews.md) records setup and verification limits. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.

@@ -13,3 +13,5 @@ Recheck when: the compose file moves, the runner's log directory changes, the ag
 - Production database: no `sqlite3` in the image. Query it with `docker compose exec app node -e` using `@libsql/client` against `file:/data/cardboard.db`.
 - Service health: `curl http://127.0.0.1:3070/healthz` on minicore, `docker compose ps` in the stack directory. Public check: `https://cardboard.xode.cc/healthz`.
 - Session containers carry the label `cardboard.session=<id>`; `docker ps -a --filter label=cardboard.session` lists them. The runner removes them after exit.
+
+Preview host configuration and verification are recorded in [the preview runbook](../../runbooks/previews.md). Watchtower applies image updates only; applying PR 10 required separately updating the stacks Compose file to create `cardboard_preview` and wire the app secret and hostname pattern.
