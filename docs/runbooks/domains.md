@@ -36,4 +36,8 @@ Resend sends as `Milo <milo@kardboard.cc>`. Verify `resend._domainkey` (TXT), `s
 
 The repository's `CARDBOARD_*` variables, `@cardboard/*` package names, GHCR image names, Docker networks, database filename, and existing storage paths remain stable. Rebranding does not move or replace production data. `deploy/compose.yaml` and `chriscorbell/stacks/cardboard/compose.yaml` must remain aligned; Watchtower applies image updates but does not apply Compose edits.
 
-The active migration and remaining verification are tracked in the [work note](../memory/work/2026-09-15-kardboard-rebrand.md).
+## Migration verification
+
+On 2026-09-15 UTC, the existing Clerk instance moved to the root with all DNS records verified and both certificates issued. Google sign-in and Admin email-code sign-in succeeded. The Admin opened the rebuilt Preview on its new hostname. Clerk denied Preview origins on `/v1/client`; unknown Preview hosts returned 404. Resend verified the new domain and the existing sending key was restricted to it. Both GitHub Apps remained installed after the repository rename.
+
+Production Compose is applied. [PR 12](https://github.com/chriscorbell/kardboard/pull/12) holds the branding and legacy redirect implementation; its release remains tracked in the [work note](../memory/work/2026-09-15-kardboard-rebrand.md).
