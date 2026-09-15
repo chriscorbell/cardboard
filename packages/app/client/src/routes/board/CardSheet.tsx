@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Check, ChevronDown, ExternalLink, FileText, GitBranch, GitPullRequest, History, Pencil, RotateCcw, Square, X } from "lucide-react";
-import { COLUMNS, COLUMN_LABELS, PRIORITIES, type ActivityEntry, type AgentProfile, type Attachment, type BoardView, type Card, type Column, type Comment, type Priority, type User } from "@cardboard/shared";
-import { useApproveCard, useCard, useCreateComment, useMe, useMoveCard, useUpdateCard, useUpdateComment, request, keys } from "../../lib/api";
+import { approvalAwaitingRetry, COLUMNS, COLUMN_LABELS, PRIORITIES, type ActivityEntry, type AgentProfile, type Approval, type Attachment, type BoardView, type Card, type Column, type Comment, type Priority, type User } from "@cardboard/shared";
+import { ApiError, useApproveCard, useCard, useCreateComment, useMe, useMoveCard, useRetryMerge, useUpdateCard, useUpdateComment, request, keys } from "../../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, Button, Chip, cx, IconButton, Input, Skeleton, Textarea } from "../../components/ui";
 import { Menu } from "../../components/Menu";
@@ -52,6 +52,7 @@ function SheetBody({ slug, cardId, view, onClose }: { slug: string; cardId: stri
   const update = useUpdateCard(slug);
   const move = useMoveCard(slug);
   const approve = useApproveCard(slug);
+  const retryMerge = useRetryMerge(slug);
   const qc = useQueryClient();
   const members = useMemo(() => new Map(view.members.map((m) => [m.id, m])), [view.members]);
   const handles = useMemo(() => {
@@ -171,7 +172,17 @@ function SheetBody({ slug, cardId, view, onClose }: { slug: string; cardId: stri
         ) : null}
 
         {card.column === "review" ? (
-          <ReviewBlock card={card} agentName={view.agent.name} approvals={detail.data?.approvals ?? []} members={members} onApprove={() => approve.mutateAsync(card.id)} busy={approve.isPending} />
+          <ReviewBlock
+            card={card}
+            agentName={view.agent.name}
+            approvals={detail.data?.approvals ?? []}
+            members={members}
+            onApprove={() => approve.mutateAsync(card.id)}
+            busy={approve.isPending}
+            onRetryMerge={() => retryMerge.mutateAsync(card.id).catch(() => undefined)}
+            retrying={retryMerge.isPending}
+            retryError={retryMerge.error instanceof ApiError ? retryMerge.error.message : retryMerge.error ? "The retry did not go through." : null}
+          />
         ) : null}
 
         <div className="px-6 pb-2 pt-6">
@@ -283,11 +294,45 @@ function DescriptionEditor({ card, handles, onSave }: { card: Card; handles: Map
   );
 }
 
-function ReviewBlock({ card, agentName, approvals, members, onApprove, busy }: { card: Card; agentName: string; approvals: { userId: string; createdAt: string; invalidatedAt: string | null }[]; members: Map<string, User>; onApprove: () => Promise<unknown>; busy: boolean }) {
+function ReviewBlock({
+  card,
+  agentName,
+  approvals,
+  members,
+  onApprove,
+  busy,
+  onRetryMerge,
+  retrying,
+  retryError,
+}: {
+  card: Card;
+  agentName: string;
+  approvals: Approval[];
+  members: Map<string, User>;
+  onApprove: () => Promise<unknown>;
+  busy: boolean;
+  onRetryMerge: () => Promise<unknown>;
+  retrying: boolean;
+  retryError: string | null;
+}) {
   const live = approvals.filter((a) => !a.invalidatedAt);
+  const refused = approvalAwaitingRetry(approvals);
   return (
     <div className="mx-6 mt-4 rounded-card border border-line bg-raised px-4 py-3.5">
-      {live.length > 0 ? (
+      {refused ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13.5px] font-medium text-ink">GitHub refused the merge</p>
+            <p className="mt-0.5 text-[12.5px] text-ink-muted">
+              {refused.mergeError} The approval by {members.get(refused.userId)?.name ?? "a member"} {relativeTime(refused.createdAt)} still stands, so try again once the cause is fixed.
+            </p>
+            {retryError ? <p className="mt-1 text-[12.5px] text-danger">{retryError}</p> : null}
+          </div>
+          <Button variant="primary" className="w-full sm:w-auto" loading={retrying} icon={<RotateCcw className="size-4" strokeWidth={2} />} onClick={() => void onRetryMerge()}>
+            Retry merge
+          </Button>
+        </div>
+      ) : live.length > 0 ? (
         <div className="flex items-center gap-2 text-[13px]">
           <Check className="size-4 text-ok" strokeWidth={2} />
           <span className="text-ink">
@@ -403,6 +448,9 @@ const ACTIVITY_LABEL: Record<string, (p: Record<string, unknown>) => string> = {
   "card.edited": (p) => `edited the ${(p.fields as string[] | undefined)?.join(" and ") ?? "card"}`,
   "card.moved": (p) => `moved it from ${COLUMN_LABELS[p.from as Column] ?? p.from} to ${COLUMN_LABELS[p.to as Column] ?? p.to}`,
   "card.approved": () => "approved the change",
+  "card.merged": (p) => `merged pull request #${p.prNumber as number}`,
+  "card.merge_refused": (p) => `could not merge: ${(p.error as string) ?? "GitHub refused"}`,
+  "card.merge_retried": () => "asked for the merge to be tried again",
   "comment.posted": () => "commented",
   "comment.edited": () => "edited a comment",
   "session.queued": () => "queued a session",
