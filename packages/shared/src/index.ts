@@ -57,6 +57,9 @@ export const TRIGGER_KINDS = [
   "comment_posted",
   "comment_edited",
   "approval",
+  // Not raised by a person: the orchestrator raises one when a Session ran out of Provider usage,
+  // so the Card is picked up again on the other Provider with the same work in front of it.
+  "provider_fallback",
 ] as const;
 export type TriggerKind = (typeof TRIGGER_KINDS)[number];
 
@@ -120,6 +123,8 @@ export interface SessionSummary {
   kind: SessionKind;
   status: SessionStatus;
   provider: Provider;
+  /** Set when this Session runs on the other Provider because `provider` ran out of usage. */
+  fallbackFrom: Provider | null;
   intent: string | null;
   branch: string | null;
   cardId: string | null;
@@ -317,12 +322,15 @@ export const settingsSchema = z.object({
     .optional(),
   globalMaxConcurrentSessions: z.number().int().min(1).max(20).optional(),
   sessionWallClockMinutes: z.number().int().min(5).max(240).optional(),
+  providerFallback: z.boolean().optional(),
 });
 export type Settings = {
   agentName: string;
   agentAvatarUrl: string | null;
   globalMaxConcurrentSessions: number;
   sessionWallClockMinutes: number;
+  /** Move a Card to the other Provider when the one it was running on is out of usage. */
+  providerFallback: boolean;
 };
 
 // A SQLite snapshot on the data bind mount, written with VACUUM INTO and verified before it counts.

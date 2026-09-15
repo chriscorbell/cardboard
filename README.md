@@ -30,6 +30,7 @@ When the work is done, the Session opens a pull request and moves the card to Re
 - **Sessions that see the whole board**: an MCP server exposes the ledger of active Sessions, every card, comments, and attachments, plus tools to comment, move, and create cards.
 - **Safe by construction**: Sessions run with resource limits, a wall clock, a one-hour repository token, and no access to your provider credentials, which stay in a proxy.
 - **Approvals bound to code**: an Approval records the pull request commit the reviewer saw. A later push voids it.
+- **Provider fallback**: when a subscription runs out of usage, the proxy sees the refusal and the card is picked up again on the other provider.
 - **Notifications** for mentions and card moves: a bell with an unread badge in the app, and the same thing by email through Resend.
 - **Invite-only access** with Clerk. Only email addresses you add can sign in, each member only sees their boards, and an invitation email tells them where to do it.
 - **Live session transcripts**: expand any run in the admin panel to watch the agent's messages, tool calls, and results arrive as they happen.
@@ -111,4 +112,4 @@ Each board points at one repository. To prepare one, run the `cardboard-onboard`
 
 ## Status
 
-The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Still to come: runner-hosted previews and provider fallback on usage limits. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.
+The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Still to come: runner-hosted previews. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.

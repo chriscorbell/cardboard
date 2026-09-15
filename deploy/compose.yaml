@@ -25,6 +25,8 @@ services:
       CARDBOARD_EMAIL_FROM: "Milo <milo@cardboard.xode.cc>"
       CARDBOARD_RUNNER_URL: http://runner:3071
       CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
+      # Only to read which Providers are out of usage, for fallback. No Session traffic comes here.
+      CARDBOARD_EGRESS_URL: http://egress:8787
       GITHUB_SESSIONS_APP_ID: ${GITHUB_SESSIONS_APP_ID}
       GITHUB_SESSIONS_APP_SLUG: ${GITHUB_SESSIONS_APP_SLUG}
       GITHUB_SESSIONS_APP_PRIVATE_KEY_B64: ${GITHUB_SESSIONS_APP_PRIVATE_KEY_B64}
@@ -65,6 +67,9 @@ services:
       # A path in this container. The whole directory is mounted, not the one file, because the
       # proxy replaces the file when it refreshes the access token and a rename needs the directory.
       CODEX_AUTH_FILE: ${CARDBOARD_CODEX_AUTH_FILE:+/secrets/codex-auth.json}
+      # Guards /limits, which the app reads to decide a Provider fallback. Session containers reach
+      # this proxy too and do not hold the runner token, which is why it is reused here.
+      EGRESS_CONTROL_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
     volumes:
       - ../../data/cardboard/secrets:/secrets
     networks: [control, workload]

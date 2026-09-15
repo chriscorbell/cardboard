@@ -12,12 +12,17 @@ export async function buildSessionPrompt(input: {
 }): Promise<string> {
   const settings = await getSettings();
   const triggerLines = input.triggers.map((t) => `- ${t.kind} at ${t.createdAt}${Object.keys(t.payload).length ? ` ${JSON.stringify(t.payload)}` : ""}`).join("\n");
+  // A fallback Session inherits a branch that may already carry the previous run's commits, so say
+  // so plainly rather than leaving it to infer that from the trigger line.
+  const fellBack = input.triggers.some((t) => t.kind === "provider_fallback")
+    ? "\nA previous session on this card stopped because its provider ran out of usage, so you are running on the other one. Its work may already be on the branch: read the branch and the card's comments before redoing anything.\n"
+    : "";
   return `You are ${settings.agentName}, the coding agent for the "${input.board.name}" board in Cardboard.
 Session ${input.sessionId} is bound to card ${input.card.id}: "${input.card.title}" (currently in ${COLUMN_LABELS[input.card.column]}).
 
 Triggers that started this session:
 ${triggerLines}
-
+${fellBack}
 Follow this workflow in order.
 1. Orient. Use the Cardboard tools to read the ledger of active sessions, the board, this card, its comments and attachments, then read the repository's AGENTS.md. Announce a one-line intent and the areas you expect to touch.
 2. Classify the trigger batch: new request, clarification reply, review feedback, approval, human move, or noise such as a typo fix. If it is noise, end without posting.

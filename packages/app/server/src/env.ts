@@ -37,6 +37,8 @@ export const env = {
   emailFrom: str("CARDBOARD_EMAIL_FROM", "Milo <milo@example.com>"),
   runnerUrl: str("CARDBOARD_RUNNER_URL"),
   runnerToken: str("CARDBOARD_RUNNER_TOKEN"),
+  // Only for reading which Providers are out of usage. Session traffic never passes through the app.
+  egressUrl: str("CARDBOARD_EGRESS_URL").replace(/\/$/, ""),
   githubSessionsApp: githubApp("GITHUB_SESSIONS_APP"),
   githubMergeApp: githubApp("GITHUB_MERGE_APP"),
   triggerCoalesceMs: Number(str("CARDBOARD_TRIGGER_COALESCE_MS", "60000")),

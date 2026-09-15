@@ -10,3 +10,4 @@ Threshold: 12 entries. Past it, the bounded review in [maintenance](../maintenan
 - [Operating Cardboard on minicore](cardboard-production-operations.md): read when deploying a change, rotating a secret, reading a Session log, or querying the production database.
 - [Testing client code](client-side-tests.md): read when a change in `packages/app/client` needs a test; there is no DOM harness.
 - [The Cardboard board has no per-pull-request preview](this-board-has-no-pull-request-preview.md): read when a card asks for a preview URL or a UI change needs to be seen.
+- [A provider's usage limit is only visible in the egress proxy](provider-usage-limits-are-seen-in-the-proxy.md): read when changing Provider fallback, touching `/limits`, or explaining why a Card did or did not switch Providers.
