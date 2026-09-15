@@ -9,7 +9,7 @@ declare global {
   }
 }
 export const clerkPublishableKey: string | undefined =
-  window.__CARDBOARD_CONFIG__?.clerkPublishableKey || (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined) || undefined;
+  (window.__CARDBOARD_CONFIG__?.clerkPublishableKey ?? (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined)) || undefined;
 
 type AuthValue = {
   mode: "dev" | "clerk";

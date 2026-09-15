@@ -1,6 +1,6 @@
 # Backups and restore
 
-Cardboard keeps its state in one SQLite database in WAL mode, see [ADR 0004](../adr/0004-sqlite-in-a-single-server-process.md). On minicore the data bind mount is `~/docker/data/cardboard/app`, mounted at `/data` in the `app` container:
+kardboard keeps its state in one SQLite database in WAL mode, see [ADR 0004](../adr/0004-sqlite-in-a-single-server-process.md). On minicore the data bind mount is `~/docker/data/cardboard/app`, mounted at `/data` in the `app` container:
 
 | Path under `/data` | What it is |
 | --- | --- |
@@ -58,7 +58,7 @@ docker compose logs -f app                   # migrations run on boot; watch for
 
 A snapshot carries no `-wal` or `-shm` file, and must not be given one: SQLite recreates both on first use. The app runs its migrations at startup, so restoring a snapshot taken by an older image is safe as long as the image is at least as new as the snapshot.
 
-Then check the board in a browser, and only afterwards remove the `.broken` files. Work that happened after the snapshot is gone: cards, comments, and sessions recorded since then are not recoverable from it, and any GitHub branch or pull request a session opened in the meantime still exists on GitHub while Cardboard no longer knows about it. Re-run affected cards rather than editing the database.
+Then check the board in a browser, and only afterwards remove the `.broken` files. Work that happened after the snapshot is gone: cards, comments, and sessions recorded since then are not recoverable from it, and any GitHub branch or pull request a session opened in the meantime still exists on GitHub while kardboard no longer knows about it. Re-run affected cards rather than editing the database.
 
 ## What this does not cover
 

@@ -1,4 +1,4 @@
-# Cardboard
+# kardboard
 
 A self-hosted kanban platform where every human change to a board summons a disposable coding agent that either does the work or asks for what it needs.
 
@@ -67,11 +67,11 @@ The coding-agent product a Session runs on: Claude Code or Codex.
 _Avoid_: Model, backend, harness
 
 **Trigger**:
-A human change to a Board that starts or queues a Session on the affected Card: creating a Card, editing its description, posting a Comment, or moving it between Columns. Cardboard itself writes one kind, `provider_fallback`, when a Session's Provider ran out of usage and the Card should be picked up again on the other one.
+A human change to a Board that starts or queues a Session on the affected Card: creating a Card, editing its description, posting a Comment, or moving it between Columns. kardboard itself writes one kind, `provider_fallback`, when a Session's Provider ran out of usage and the Card should be picked up again on the other one.
 _Avoid_: Event, webhook, action
 
 **Claim**:
-A Session's exclusive hold on its Card, taken by Cardboard when the Session is created and released when it ends.
+A Session's exclusive hold on its Card, taken by kardboard when the Session is created and released when it ends.
 _Avoid_: Lock, lease
 
 **Transcript**:
@@ -87,7 +87,7 @@ A temporary deployment of a Card's branch that Members use to review and test th
 _Avoid_: Staging, demo, environment
 
 **Approval**:
-A Member's recorded sign-off, given through the Approve control on a Card in Review, bound to the pull request revision the Member saw. Cardboard, not a Session, performs the merge it authorizes. A later change to the pull request voids it. A Comment is never an Approval.
+A Member's recorded sign-off, given through the Approve control on a Card in Review, bound to the pull request revision the Member saw. kardboard, not a Session, performs the merge it authorizes. A later change to the pull request voids it. A Comment is never an Approval.
 _Avoid_: Sign-off, LGTM, acceptance
 
 **Pending re-run**:

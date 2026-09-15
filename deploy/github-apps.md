@@ -1,6 +1,6 @@
-# GitHub Apps for Cardboard
+# GitHub Apps for kardboard
 
-Cardboard uses two GitHub Apps with identical repository permissions and different trust. Sessions
+kardboard uses two GitHub Apps with identical repository permissions and different trust. Sessions
 receive one-hour tokens from the first and can push branches and open pull requests. Only the app
 itself, on a recorded Approval, uses the second to merge. A branch ruleset on the default branch
 requires a pull request with one approval and lists the merge app as its only bypass actor, so a
@@ -13,12 +13,12 @@ Twice, at https://github.com/settings/apps/new (once per app):
 | Field | cardboard-sessions | cardboard-merge |
 | --- | --- | --- |
 | GitHub App name | Cardboard Sessions | Cardboard Merge |
-| Homepage URL | https://cardboard.xode.cc | https://cardboard.xode.cc |
+| Homepage URL | https://kardboard.cc | https://kardboard.cc |
 | Webhook | Uncheck **Active** | Uncheck **Active** |
-| Repository permissions | Contents: Read and write. Pull requests: Read and write. Metadata: Read. | Same, plus Workflows: Read and write, so Cardboard can merge a pull request that touches `.github/workflows` |
+| Repository permissions | Contents: Read and write. Pull requests: Read and write. Metadata: Read. | Same, plus Workflows: Read and write, so kardboard can merge a pull request that touches `.github/workflows` |
 | Where can this app be installed | Any account | Any account |
 
-Adding a permission here does not widen what a Session can do. Cardboard mints each Session token
+Adding a permission here does not widen what a Session can do. kardboard mints each Session token
 with a fixed `{ contents: write, pull_requests: write, metadata: read }` (`mintInstallationToken`
 in `packages/app/server/src/services/github.ts`), and an installation token can only narrow the
 installation's permissions, never widen them. In particular no Session can push a change to

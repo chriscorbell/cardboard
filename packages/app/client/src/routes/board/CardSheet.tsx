@@ -429,7 +429,7 @@ function Activity({ entries, members, agentName }: { entries: ActivityEntry[]; m
       {open ? (
         <ol className="mt-3 flex flex-col gap-1.5 text-[12.5px] text-ink-muted">
           {visible.map((e) => {
-            const who = e.actorKind === "agent" ? agentName : e.actorKind === "system" ? "Cardboard" : e.actorId ? (members.get(e.actorId)?.name ?? "Someone") : "Someone";
+            const who = e.actorKind === "agent" ? agentName : e.actorKind === "system" ? "kardboard" : e.actorId ? (members.get(e.actorId)?.name ?? "Someone") : "Someone";
             const label = ACTIVITY_LABEL[e.type]?.(e.payload) ?? e.type;
             return (
               <li key={e.id} className="flex gap-2">

@@ -5,7 +5,7 @@ import path from "node:path";
 import type { Readable } from "node:stream";
 import type Docker from "dockerode";
 
-// A Preview is the branch's own Dockerfile, built and run as a container. It holds no Cardboard
+// A Preview is the branch's own Dockerfile, built and run as a container. It holds no kardboard
 // credential and joins the preview network only, so branch-controlled code can reach the internet
 // and nothing else on the stack: not the runner's control network, not MCP, not the egress proxy.
 

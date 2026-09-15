@@ -1,4 +1,4 @@
-# Operating Cardboard on minicore
+# Operating kardboard on minicore
 
 Read when: deploying a change to production, rotating a secret, reading a Session's log, or inspecting the production database.
 Status: verified
@@ -11,5 +11,7 @@ Recheck when: the compose file moves, the runner's log directory changes, the ag
 - Secrets never leave `deploy/.env` on mbp except by `scp deploy/.env minicore:/home/chris/docker/stacks/cardboard/.env` followed by `docker compose up -d` in that directory. The compose file itself is committed in `chriscorbell/stacks` under `cardboard/`; `git pull` there before `up -d`.
 - Session logs: `~/docker/data/cardboard/runner/logs/<session id>.log` on minicore, kept 14 days. Since 2026-09-14 the agent entrypoint runs Claude Code with `--output-format stream-json --verbose`, so the log fills line by line during the run; before that it held only the clone and start lines until exit. The admin panel reads the same file through the runner's `GET /sessions/:id/log`, so SSH is no longer the only way in.
 - Production database: no `sqlite3` in the image. Query it with `docker compose exec app node -e` using `@libsql/client` against `file:/data/cardboard.db`.
-- Service health: `curl http://127.0.0.1:3070/healthz` on minicore, `docker compose ps` in the stack directory. Public check: `https://cardboard.xode.cc/healthz`.
+- Service health: `curl http://127.0.0.1:3070/healthz` on minicore, `docker compose ps` in the stack directory. Public check: `https://kardboard.cc/healthz`. The current hostnames, Clerk, and email configuration are in [domain configuration](../../runbooks/domains.md).
 - Session containers carry the label `cardboard.session=<id>`; `docker ps -a --filter label=cardboard.session` lists them. The runner removes them after exit.
+
+Preview host configuration and verification are recorded in [the preview runbook](../../runbooks/previews.md). Watchtower applies image updates only; applying PR 10 required separately updating the stacks Compose file to create `cardboard_preview` and wire the app secret and hostname pattern.

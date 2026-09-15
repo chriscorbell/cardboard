@@ -178,7 +178,7 @@ async function dispatch(cardId: string): Promise<void> {
       boardSlug: board.slug,
       provider: chosen.provider,
       // A Board's model names one Provider's model and means nothing to the other, so a run on the
-      // other Provider takes its default. Reasoning levels are Cardboard's own vocabulary and carry.
+      // other Provider takes its default. Reasoning levels are kardboard's own vocabulary and carry.
       model: chosen.switched ? null : board.model,
       reasoning: board.reasoning,
       image: board.agentImage,

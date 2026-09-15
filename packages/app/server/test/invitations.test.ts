@@ -44,12 +44,12 @@ describe("sendInvitation", () => {
 
     const mail = (await lastEmail())!;
     assert.equal(mail.toUserId, ada.id);
-    assert.equal(mail.subject, "Grace invited you to Cardboard");
-    assert.match(mail.html, /Grace invited you to Cardboard/);
+    assert.equal(mail.subject, "Grace invited you to kardboard");
+    assert.match(mail.html, /Grace invited you to kardboard/);
     // Sign-in is by address, so the address the allowlist holds has to be in the email.
     assert.match(mail.html, /ada@example\.com/);
     assert.match(mail.html, new RegExp(`href="${env.publicUrl}"`));
-    assert.match(mail.html, /Sign in to Cardboard/);
+    assert.match(mail.html, /Sign in to kardboard/);
     // The card footer would be wrong here: there is no card to reply on.
     assert.doesNotMatch(mail.html, /Reply on the card/);
   });
@@ -68,7 +68,7 @@ describe("sendInvitation", () => {
 
     await sendInvitation(ada, null);
 
-    assert.equal((await lastEmail())!.subject, "You have been invited to Cardboard");
+    assert.equal((await lastEmail())!.subject, "You have been invited to kardboard");
   });
 
   it("stays quiet for a user who has already signed in", async () => {

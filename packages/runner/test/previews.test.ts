@@ -7,7 +7,7 @@ const req: PreviewRequest = {
   boardSlug: "cardboard",
   cardId: "k6u39mjgb5j2w8",
   host: "k6u39mjg.preview.xode.cc",
-  repoUrl: "https://github.com/chriscorbell/cardboard",
+  repoUrl: "https://github.com/chriscorbell/kardboard",
   branch: "cardboard/k6u39mjg-runner-hosted-previews",
   githubToken: "ghs_secret",
   dockerfile: "Dockerfile",
@@ -19,7 +19,7 @@ const limits = { network: "cardboard_preview", memoryBytes: 1024, nanoCpus: 1000
 
 describe("cloning a branch for a Preview", () => {
   it("puts the installation token in the clone URL", () => {
-    assert.equal(cloneUrl(req.repoUrl, "ghs_secret"), "https://x-access-token:ghs_secret@github.com/chriscorbell/cardboard");
+    assert.equal(cloneUrl(req.repoUrl, "ghs_secret"), "https://x-access-token:ghs_secret@github.com/chriscorbell/kardboard");
   });
 
   it("leaves a public repository URL alone when there is no token", () => {

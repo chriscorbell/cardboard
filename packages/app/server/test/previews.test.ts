@@ -9,7 +9,7 @@ import type { User } from "@cardboard/shared";
 // The database module opens its file at import time, so point it at a scratch directory first.
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "cardboard-previews-"));
 process.env.CARDBOARD_DATA_DIR = root;
-process.env.CARDBOARD_PUBLIC_URL = "https://cardboard.xode.cc";
+process.env.CARDBOARD_PUBLIC_URL = "https://kardboard.cc";
 process.env.CARDBOARD_PREVIEW_SECRET = "test-preview-secret";
 
 const { db, schema, runMigrations } = await import("../src/db/index.js");
@@ -43,7 +43,7 @@ async function makePreview(boardId = BOARD): Promise<{ id: string; host: string;
   const cardId = `card-${n++}`;
   const id = `preview-${n++}`;
   await db.insert(schema.cards).values({ id: cardId, boardId, title: "A card", branch: `cardboard/${cardId}` });
-  const host = `${cardId}.preview.xode.cc`;
+  const host = `${cardId}.kardboard.cc`;
   await db.insert(schema.previews).values({ id, boardId, cardId, host, status: "running", branch: `cardboard/${cardId}`, target: `http://cardboard-preview-${id}:3000` });
   return { id, host, cardId };
 }
@@ -51,15 +51,15 @@ async function makePreview(boardId = BOARD): Promise<{ id: string; host: string;
 beforeEach(async () => {
   for (const t of [schema.previewCodes, schema.previews, schema.cards, schema.boardMembers, schema.users, schema.boards]) await db.delete(t);
   await db.insert(schema.boards).values([
-    { id: BOARD, slug: "board-1", name: "Board one", previewMode: "runner", repoUrl: "https://github.com/chriscorbell/cardboard" },
+    { id: BOARD, slug: "board-1", name: "Board one", previewMode: "runner", repoUrl: "https://github.com/chriscorbell/kardboard" },
     { id: OTHER_BOARD, slug: "board-2", name: "Board two" },
   ]);
 });
 
 describe("preview hostnames", () => {
   it("hangs off the app's own parent domain, one host per card", () => {
-    assert.equal(previewHostFor("k6u39mjgb5j2w8"), "k6u39mjg.preview.xode.cc");
-    assert.equal(previewUrlFor("k6u39mjg.preview.xode.cc"), "https://k6u39mjg.preview.xode.cc");
+    assert.equal(previewHostFor("k6u39mjgb5j2w8"), "k6u39mjg.kardboard.cc");
+    assert.equal(previewUrlFor("k6u39mjg.kardboard.cc"), "https://k6u39mjg.kardboard.cc");
   });
 });
 

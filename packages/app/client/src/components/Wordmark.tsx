@@ -8,7 +8,7 @@ export function Wordmark({ to = "/" }: { to?: string }) {
         <rect x="9" y="9" width="6" height="14" rx="1.5" fill="#121110" />
         <rect x="17" y="9" width="6" height="8" rx="1.5" fill="#121110" />
       </svg>
-      <span className="text-[15px] font-semibold tracking-tight">Cardboard</span>
+      <span className="text-[15px] font-semibold tracking-tight">kardboard</span>
     </Link>
   );
 }

@@ -19,6 +19,18 @@ import { ensureSeed } from "./seed.js";
 const app = new Hono();
 app.use("*", logger((msg) => console.log(msg)));
 app.get("/healthz", (c) => c.json({ ok: true }));
+// Keep bookmarked pages working after a domain move. The destination is deployment config,
+// never a request-supplied origin; API mutations remain on the origin that received them.
+app.use("*", async (c, next) => {
+  const incoming = new URL(c.req.url);
+  if (["GET", "HEAD"].includes(c.req.method) && env.redirectHosts.includes(incoming.hostname)) {
+    const destination = new URL(env.publicUrl);
+    destination.pathname = incoming.pathname;
+    destination.search = incoming.search;
+    return c.redirect(destination.href, 308);
+  }
+  await next();
+});
 // Internal routes are registered before the user API so its auth middleware never sees them.
 app.route("/api/internal", internal);
 app.route("/api", api);
@@ -54,5 +66,5 @@ startBackupScheduler();
 startPreviewReaper();
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
-  console.log(`cardboard app listening on http://localhost:${info.port} (auth=${env.authMode})`);
+  console.log(`kardboard app listening on http://localhost:${info.port} (auth=${env.authMode})`);
 });

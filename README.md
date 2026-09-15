@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/cardboard-wordmark-on-dark.png">
-  <img src="docs/brand/cardboard-wordmark-on-light.png" alt="Cardboard" width="320">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/kardboard-wordmark-on-dark.svg">
+  <img src="docs/brand/kardboard-wordmark-on-light.svg" alt="kardboard" width="320">
 </picture>
 
 **A self-hosted kanban board where every card change summons a coding agent.**
@@ -11,13 +11,15 @@
 
 <br>
 
-![A Cardboard board with six columns and an agent working on a card](docs/brand/screenshot-board.png)
+![A kardboard board with six columns and an agent working on a card](docs/brand/screenshot-board.png)
 
 ## What it does
 
-Cardboard is a kanban board for one project per board. Your clients, teammates, or you write cards. About a minute after a card is created, edited, commented on, or moved, Cardboard starts a **Session**: a disposable container running Claude Code (or Codex) that clones the project, reads the board over MCP, and either does the work or asks a clarifying question on the card.
+The app runs at [kardboard.cc](https://kardboard.cc). [Domain configuration](docs/runbooks/domains.md) covers sign-in, email, and Card preview hostnames.
 
-When the work is done, the Session opens a pull request and moves the card to Review. A member presses **Approve**, and Cardboard merges the pull request, moves the card to Done, and lets everyone know. Sessions can push branches but can never merge; that authority stays with Cardboard.
+kardboard is a kanban board for one project per board. Your clients, teammates, or you write cards. About a minute after a card is created, edited, commented on, or moved, kardboard starts a **Session**: a disposable container running Claude Code (or Codex) that clones the project, reads the board over MCP, and either does the work or asks a clarifying question on the card.
+
+When the work is done, the Session opens a pull request and moves the card to Review. A member presses **Approve**, and kardboard merges the pull request, moves the card to Done, and lets everyone know. Sessions can push branches but can never merge; that authority stays with kardboard.
 
 ![A card in Review with a pull request, a preview link, and the Approve control](docs/brand/screenshot-card.png)
 
@@ -30,7 +32,7 @@ When the work is done, the Session opens a pull request and moves the card to Re
 - **Sessions that see the whole board**: an MCP server exposes the ledger of active Sessions, every card, comments, and attachments, plus tools to comment, move, and create cards.
 - **Safe by construction**: Sessions run with resource limits, a wall clock, a one-hour repository token, and no access to your provider credentials, which stay in a proxy.
 - **Approvals bound to code**: an Approval records the pull request commit the reviewer saw. A later push voids it.
-- **Previews per card**: in runner preview mode Cardboard builds the branch's Dockerfile and hosts it at the card's own hostname, open only to that board's members through a single-use code and a host-only cookie, and taken down when the card reaches Done.
+- **Previews per card**: in runner preview mode kardboard builds the branch's Dockerfile and hosts it at the card's own hostname, open only to that board's members through a single-use code and a host-only cookie, and taken down when the card reaches Done.
 - **Provider fallback**: when a subscription runs out of usage, the proxy sees the refusal and the card is picked up again on the other provider.
 - **Notifications** for mentions and card moves: a bell with an unread badge in the app, and the same thing by email through Resend.
 - **Invite-only access** with Clerk. Only email addresses you add can sign in, each member only sees their boards, and an invitation email tells them where to do it.
@@ -40,11 +42,11 @@ When the work is done, the Session opens a pull request and moves the card to Re
 ## How a Session works
 
 1. A human change to a card is a **Trigger**. Triggers on the same card within a minute are batched.
-2. Cardboard claims the card and asks the **runner** to start a container from the agent image.
-3. The container clones the repository on a branch named after the card and starts the provider CLI with a workflow prompt and the Cardboard MCP server.
+2. kardboard claims the card and asks the **runner** to start a container from the agent image.
+3. The container clones the repository on a branch named after the card and starts the provider CLI with a workflow prompt and the kardboard MCP server.
 4. The Session orients, classifies the request, implements it, runs the repository's acceptance command from `AGENTS.md`, pushes, and opens a pull request.
 5. It reports with one comment and moves the card to Review. Unclear requests go to Blocked with a question instead.
-6. On Approve, Cardboard squash-merges through a second GitHub App that bypasses the branch ruleset, deletes the branch, and moves the card to Done.
+6. On Approve, kardboard squash-merges through a second GitHub App that bypasses the branch ruleset, deletes the branch, and moves the card to Done.
 
 ## Architecture
 
@@ -81,10 +83,13 @@ pnpm db:generate # a new migration after editing the schema
 
 ## Configuration
 
+The product name is `kardboard`. The `CARDBOARD_*` environment variables, `@cardboard/*` package names, image names, and existing data paths remain stable for deployment compatibility.
+
 Copy `packages/app/.env.example` to `packages/app/.env`. The variables that matter most:
 
 | Variable | Purpose |
 | --- | --- |
+| `CARDBOARD_PUBLIC_URL`, `CARDBOARD_REDIRECT_HOSTS` | Canonical app URL and comma-separated old hosts that redirect to it. |
 | `CARDBOARD_AUTH` | `dev` or `clerk`. |
 | `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY` | Clerk credentials for `clerk` mode. |
 | `CARDBOARD_ADMIN_EMAIL` | The first admin, created on first start. |
@@ -97,7 +102,7 @@ Copy `packages/app/.env.example` to `packages/app/.env`. The variables that matt
 
 ## Deploying
 
-Cardboard ships as five Docker images built by the included GitHub Actions workflow. [`deploy/compose.yaml`](deploy/compose.yaml) runs the four services on any Docker host, with separate networks so Session containers can reach the app and the credential proxy but never the runner. Put the public hostname in front of the app's port with whatever reverse proxy or tunnel you already use.
+kardboard ships as five Docker images built by the included GitHub Actions workflow. [`deploy/compose.yaml`](deploy/compose.yaml) runs the four services on any Docker host, with separate networks so Session containers can reach the app and the credential proxy but never the runner. Put the public hostname in front of the app's port with whatever reverse proxy or tunnel you already use.
 
 External services you need to set up once:
 
@@ -107,11 +112,13 @@ External services you need to set up once:
 
 ## Onboarding a repository
 
+Runner-hosted previews require a root `Dockerfile` that listens on `$PORT`. This repository's root `Dockerfile` links to `packages/app/Dockerfile`, so previews build the branch's app with a separate, seeded database and no production credentials. Access is checked by the preview router before requests reach that app. See [the preview runbook](docs/runbooks/previews.md) for DNS, certificates, and host configuration.
+
 Each board points at one repository. To prepare one, run the `cardboard-onboard` skill from [chriscorbell/skills](https://github.com/chriscorbell/skills) in that repository with your coding agent, or follow the same steps by hand: give `AGENTS.md` a verified acceptance command, install both GitHub Apps, create the `cardboard` ruleset, and add the board in the admin panel.
 
 > [!NOTE]
-> Cardboard is itself a board on Cardboard. Some of its own changes arrive as pull requests from Milo.
+> kardboard is itself a board on kardboard. Some of its own changes arrive as pull requests from Milo.
 
 ## Status
 
-The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Runner-hosted previews are built but not yet switched on: they need a wildcard preview hostname on the tunnel, a certificate that covers it, and `CARDBOARD_PREVIEW_SECRET`. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.
+The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Runner-hosted previews are configured on minicore with `{card}.kardboard.cc` URLs; [the preview runbook](docs/runbooks/previews.md) records setup and verification limits. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.

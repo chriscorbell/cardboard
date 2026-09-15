@@ -17,7 +17,7 @@ async function getClerk() {
   clerk = {
     async verifyToken(token) {
       try {
-        const payload = await mod.verifyToken(token, { secretKey: env.clerkSecretKey });
+        const payload = await mod.verifyToken(token, { secretKey: env.clerkSecretKey, authorizedParties: [env.publicUrl] });
         return { sub: payload.sub };
       } catch {
         return null;
