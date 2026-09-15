@@ -46,7 +46,11 @@ services:
       CARDBOARD_EGRESS_URL: http://egress:8787
       CARDBOARD_WORKLOAD_NETWORK: cardboard_workload
       CARDBOARD_LOG_DIR: /data/logs
-      CODEX_AUTH_FILE: /home/chris/docker/data/cardboard/secrets/codex-auth.json
+      # Set once the egress proxy below holds the Codex sign-in file; then Session containers get
+      # no Codex credential of their own. Leave empty to fall back to mounting the file into them.
+      CARDBOARD_CODEX_VIA_EGRESS: ${CARDBOARD_CODEX_VIA_EGRESS:-}
+      # A path on the Docker host, not in this container: the runner only names it in a bind.
+      CODEX_AUTH_FILE: ${CARDBOARD_CODEX_AUTH_FILE:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ../../data/cardboard/runner:/data
@@ -58,6 +62,11 @@ services:
     init: true
     environment:
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+      # A path in this container. The whole directory is mounted, not the one file, because the
+      # proxy replaces the file when it refreshes the access token and a rename needs the directory.
+      CODEX_AUTH_FILE: ${CARDBOARD_CODEX_AUTH_FILE:+/secrets/codex-auth.json}
+    volumes:
+      - ../../data/cardboard/secrets:/secrets
     networks: [control, workload]
 
   preview-router:

@@ -1,83 +1,46 @@
 import http from "node:http";
-import https from "node:https";
 import { URL } from "node:url";
+import { CodexCredential } from "./codex-credential.js";
+import { createProxy } from "./proxy.js";
 
 // Credential-injecting egress proxy. Session containers never hold the provider token; they send
 // requests here and the proxy adds the real credential before forwarding to the provider.
 //
-// Route: /anthropic/* -> https://api.anthropic.com/*  (Claude Code with ANTHROPIC_BASE_URL)
+// Routes:
+//   /anthropic/* -> https://api.anthropic.com/*              (Claude Code with ANTHROPIC_BASE_URL)
+//   /openai/*    -> https://chatgpt.com/backend-api/codex/*  (Codex with a named model provider)
 //
 // Verified 2026-09-14: a raw /v1/messages call from a workload container with no credential
 // received a model reply through this proxy, so the bearer plus oauth beta rewrite is accepted
 // upstream. Claude Code itself is launched with a placeholder ANTHROPIC_API_KEY so it uses the
 // API-key path; the x-api-key header it sends is dropped here.
+//
+// The /openai route is off unless CODEX_AUTH_FILE names a Codex sign-in file, and it has not yet
+// been exercised against the real ChatGPT backend. See docs/adr/0002 for what that leaves open.
 
 const port = Number(process.env.PORT ?? "8787");
 const claudeToken = process.env.CLAUDE_CODE_OAUTH_TOKEN ?? "";
-const anthropicUpstream = new URL(process.env.EGRESS_ANTHROPIC_UPSTREAM ?? "https://api.anthropic.com");
-const allowedNetworks = (process.env.EGRESS_ALLOWED_CIDRS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const codexAuthFile = process.env.CODEX_AUTH_FILE ?? "";
 
 if (!claudeToken) console.warn("[egress] CLAUDE_CODE_OAUTH_TOKEN is empty; Claude Code requests will fail upstream");
+if (!codexAuthFile) console.warn("[egress] CODEX_AUTH_FILE is empty; Codex requests are refused and Sessions must mount the sign-in file");
 
-const HOP_BY_HOP = new Set(["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "host", "content-length"]);
+const codex = codexAuthFile
+  ? new CodexCredential(codexAuthFile, {
+      clientId: process.env.EGRESS_CODEX_CLIENT_ID,
+      tokenUrl: process.env.EGRESS_CODEX_TOKEN_URL,
+      onRefresh: () => console.log("[egress] refreshed the codex access token"),
+    })
+  : null;
 
-function ipAllowed(ip: string | undefined): boolean {
-  if (allowedNetworks.length === 0) return true;
-  if (!ip) return false;
-  const plain = ip.replace(/^::ffff:/, "");
-  return allowedNetworks.some((cidr) => {
-    const [base, bitsStr] = cidr.split("/");
-    const bits = Number(bitsStr ?? "32");
-    const toInt = (a: string) => a.split(".").reduce((acc, o) => (acc << 8) + Number(o), 0) >>> 0;
-    const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
-    return (toInt(plain) & mask) === (toInt(base!) & mask);
-  });
-}
-
-const server = http.createServer((req, res) => {
-  if (req.url === "/healthz") {
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-  if (!ipAllowed(req.socket.remoteAddress)) {
-    res.writeHead(403);
-    res.end("forbidden");
-    return;
-  }
-  if (!req.url?.startsWith("/anthropic/")) {
-    res.writeHead(404);
-    res.end("unknown upstream");
-    return;
-  }
-  const targetPath = req.url.slice("/anthropic".length);
-  const headers: Record<string, string> = {};
-  for (const [k, v] of Object.entries(req.headers)) {
-    if (HOP_BY_HOP.has(k) || k === "x-api-key" || k === "authorization") continue;
-    if (typeof v === "string") headers[k] = v;
-    else if (Array.isArray(v)) headers[k] = v.join(", ");
-  }
-  headers["host"] = anthropicUpstream.host;
-  headers["authorization"] = `Bearer ${claudeToken}`;
-  const beta = new Set((headers["anthropic-beta"] ?? "").split(",").map((s) => s.trim()).filter(Boolean));
-  beta.add("oauth-2025-04-20");
-  headers["anthropic-beta"] = [...beta].join(",");
-
-  const upstream = https.request(
-    { protocol: anthropicUpstream.protocol, hostname: anthropicUpstream.hostname, port: anthropicUpstream.port || 443, path: targetPath, method: req.method, headers },
-    (up) => {
-      const outHeaders: Record<string, string | string[]> = {};
-      for (const [k, v] of Object.entries(up.headers)) if (v !== undefined && !HOP_BY_HOP.has(k)) outHeaders[k] = v;
-      res.writeHead(up.statusCode ?? 502, outHeaders);
-      up.pipe(res);
-    },
-  );
-  upstream.on("error", (err) => {
-    console.error("[egress] upstream error", err.message);
-    if (!res.headersSent) res.writeHead(502, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "upstream_unreachable" }));
-  });
-  req.pipe(upstream);
-});
+const server = http.createServer(
+  createProxy({
+    claudeToken,
+    anthropicUpstream: new URL(process.env.EGRESS_ANTHROPIC_UPSTREAM ?? "https://api.anthropic.com"),
+    codexUpstream: new URL(process.env.EGRESS_CODEX_UPSTREAM ?? "https://chatgpt.com/backend-api/codex"),
+    codex,
+    allowedNetworks: (process.env.EGRESS_ALLOWED_CIDRS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  }),
+);
 
 server.listen(port, () => console.log(`cardboard egress listening on :${port}`));

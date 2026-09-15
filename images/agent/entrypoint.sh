@@ -33,15 +33,12 @@ if [ -n "${CARDBOARD_REPO_URL:-}" ]; then
   fi
 fi
 
-# MCP config for both providers.
-mkdir -p "$HOME/.codex"
-cat > /tmp/mcp.json <<JSON
-{ "mcpServers": { "cardboard": { "type": "http", "url": "$CARDBOARD_MCP_URL", "headers": { "Authorization": "Bearer $CARDBOARD_TOKEN" } } } }
-JSON
-
 case "$CARDBOARD_PROVIDER" in
   claude)
     log "starting claude code"
+    cat > /tmp/mcp.json <<JSON
+{ "mcpServers": { "cardboard": { "type": "http", "url": "$CARDBOARD_MCP_URL", "headers": { "Authorization": "Bearer $CARDBOARD_TOKEN" } } } }
+JSON
     MODEL_ARGS=(); [ -n "${CARDBOARD_MODEL:-}" ] && MODEL_ARGS=(--model "$CARDBOARD_MODEL")
     # Effort level: Claude Code reads CLAUDE_CODE_EFFORT_LEVEL (low, medium, high, max).
     [ -n "${CARDBOARD_REASONING:-}" ] && export CLAUDE_CODE_EFFORT_LEVEL="$CARDBOARD_REASONING"
@@ -56,19 +53,57 @@ case "$CARDBOARD_PROVIDER" in
     ;;
   codex)
     log "starting codex"
-    cat > "$HOME/.codex/config.toml" <<TOML
+    export CODEX_HOME="$HOME/.codex"
+    mkdir -p "$CODEX_HOME"; chmod 700 "$CODEX_HOME"
+
+    # The runner gives the Session exactly one credential path (see packages/runner/src/codex.ts).
+    if [ -n "${CARDBOARD_CODEX_AUTH_STAGE:-}" ]; then
+      # Copy rather than read the mount in place: Codex rewrites auth.json whenever it refreshes
+      # its access token, and the mount is read-only so the Admin's file is never changed here.
+      log "using the mounted codex sign-in file"
+      install -m 600 "$CARDBOARD_CODEX_AUTH_STAGE" "$CODEX_HOME/auth.json"
+    fi
+
+    {
+      if [ -n "${CARDBOARD_CODEX_EGRESS_URL:-}" ]; then
+        # A named model provider is what puts Codex on the proxy: the default provider prefers a
+        # WebSocket to chatgpt.com that ignores any base URL, and naming one turns that transport
+        # off. `requires_openai_auth` keeps Codex in subscription mode; the proxy holds the token.
+        log "sending codex inference through the egress proxy"
+        cat <<TOML
+model_provider = "cardboard"
+
+[model_providers.cardboard]
+name = "Cardboard egress"
+base_url = "$CARDBOARD_CODEX_EGRESS_URL"
+wire_api = "responses"
+requires_openai_auth = true
+
+TOML
+      fi
+      # Verified against codex-cli 0.154.0: this is what `codex mcp add --url --bearer-token-env-var`
+      # writes, and it keeps the Session token in the environment instead of on disk.
+      cat <<TOML
 [mcp_servers.cardboard]
 url = "$CARDBOARD_MCP_URL"
-http_headers = { "Authorization" = "Bearer $CARDBOARD_TOKEN" }
+bearer_token_env_var = "CARDBOARD_TOKEN"
 TOML
-    MODEL_ARGS=(); [ -n "${CARDBOARD_MODEL:-}" ] && MODEL_ARGS=(-m "$CARDBOARD_MODEL")
+    } > "$CODEX_HOME/config.toml"
+
+    # --strict-config makes Codex fail on a key it does not recognise. A Session that cannot be
+    # configured should stop loudly; silently ignored config is how this path broke before.
+    CODEX_ARGS=(--strict-config --skip-git-repo-check)
+    [ -n "${CARDBOARD_MODEL:-}" ] && CODEX_ARGS+=(-m "$CARDBOARD_MODEL")
     # Codex calls the top level "xhigh"; Cardboard's "max" maps to it.
     if [ -n "${CARDBOARD_REASONING:-}" ]; then
       EFFORT="$CARDBOARD_REASONING"; [ "$EFFORT" = "max" ] && EFFORT="xhigh"
-      MODEL_ARGS+=(-c "model_reasoning_effort=\"$EFFORT\"")
+      CODEX_ARGS+=(-c "model_reasoning_effort=\"$EFFORT\"")
     fi
+    # `--full-auto` was removed in codex-cli 0.154 and Codex exits 2 on it. The Session container is
+    # itself the sandbox, which is the case this flag documents. stdin is already at EOF after the
+    # prompt was read; closing it explicitly stops Codex waiting for more input.
     exec timeout --signal=TERM "${WALL_CLOCK_MINUTES}m" \
-      codex exec --full-auto "${MODEL_ARGS[@]}" "$PROMPT"
+      codex exec --dangerously-bypass-approvals-and-sandbox "${CODEX_ARGS[@]}" "$PROMPT" < /dev/null
     ;;
   *)
     log "unknown provider $CARDBOARD_PROVIDER"; exit 64 ;;

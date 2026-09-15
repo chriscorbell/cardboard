@@ -111,4 +111,4 @@ Each board points at one repository. To prepare one, run the `cardboard-onboard`
 
 ## Status
 
-The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Still to come: runner-hosted previews, provider fallback on usage limits, and Codex through the credential proxy. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.
+The full loop runs in production: sign-in, card to Session, pull request, Approval, merge, deploy. Still to come: runner-hosted previews and provider fallback on usage limits. Codex through the credential proxy is built but not yet proven against the real backend. See [docs/design.md](docs/design.md) for the current status and [docs/runbooks](docs/runbooks/) for operations.

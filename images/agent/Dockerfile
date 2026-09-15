@@ -27,8 +27,10 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 # uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
 
-# Provider CLIs
-RUN npm install -g @anthropic-ai/claude-code @openai/codex
+# Provider CLIs. Codex is pinned: its CLI has removed flags and config keys between releases, and
+# the entrypoint's Codex invocation is verified against this version. Bump it deliberately.
+ARG CODEX_VERSION=0.154.0
+RUN npm install -g @anthropic-ai/claude-code "@openai/codex@${CODEX_VERSION}"
 
 RUN useradd -m -u 1001 -s /bin/bash agent && mkdir -p /work /home/agent/.claude && chown -R agent:agent /work /home/agent \
     && printf '{ "includeCoAuthoredBy": false }\n' > /home/agent/.claude/settings.json && chown agent:agent /home/agent/.claude/settings.json

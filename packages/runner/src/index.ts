@@ -4,6 +4,7 @@ import Docker from "dockerode";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
+import { codexWiring } from "./codex.js";
 import { readLogSlice } from "./logs.js";
 
 // The runner is the only process with the Docker socket. It knows how to do exactly two things:
@@ -23,7 +24,9 @@ const env = {
   memoryBytes: Number(process.env.CARDBOARD_SESSION_MEMORY_BYTES ?? String(4 * 1024 * 1024 * 1024)),
   nanoCpus: Number(process.env.CARDBOARD_SESSION_NANO_CPUS ?? String(2e9)),
   pidsLimit: Number(process.env.CARDBOARD_SESSION_PIDS_LIMIT ?? "1024"),
+  // A path on the Docker host: the runner never opens it, it only names it in a bind.
   codexAuthFile: process.env.CODEX_AUTH_FILE ?? "",
+  codexViaEgress: /^(1|true|yes)$/i.test(process.env.CARDBOARD_CODEX_VIA_EGRESS ?? ""),
 };
 
 if (!env.token) {
@@ -116,6 +119,14 @@ app.post("/sessions", async (c) => {
   const info = await existing.inspect().catch(() => null);
   if (info) return c.json({ containerId: info.Id });
 
+  // Refuse a Codex Session with no way to reach the provider rather than starting a container that
+  // can only fail: it would hold a concurrency slot and report an exit the Card cannot explain.
+  const codex = req.provider === "codex" ? codexWiring({ viaEgress: env.codexViaEgress, egressUrl: env.egressUrl, authFile: env.codexAuthFile }) : { env: [], binds: [] };
+  if ("error" in codex) {
+    console.error(`[runner] refusing codex session ${req.sessionId}: ${codex.error}`);
+    return c.json({ error: codex.error }, 400);
+  }
+
   const image = req.image ?? env.defaultImage;
   await ensureImage(image);
   const envList = [
@@ -135,9 +146,9 @@ app.post("/sessions", async (c) => {
     `ANTHROPIC_BASE_URL=${env.egressUrl}/anthropic`,
     `ANTHROPIC_API_KEY=cardboard-egress`,
     `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
+    ...codex.env,
   ];
-  const binds: string[] = [];
-  if (req.provider === "codex" && env.codexAuthFile) binds.push(`${env.codexAuthFile}:/home/agent/.codex/auth.json:ro`);
+  const binds = [...codex.binds];
 
   const container = await docker.createContainer({
     Image: image,

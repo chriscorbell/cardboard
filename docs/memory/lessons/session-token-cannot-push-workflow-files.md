@@ -4,8 +4,8 @@ Read when: a push is rejected with `refusing to allow a GitHub App to create or 
 
 Status: verified
 Scope: every Cardboard board, because the limit is in Cardboard's own token minting
-Verified: 2026-09-14
-Source: [`packages/app/server/src/services/github.ts`](../../../packages/app/server/src/services/github.ts), `mintInstallationToken`
+Verified: 2026-09-15
+Source: [`packages/app/server/src/services/github.ts`](../../../packages/app/server/src/services/github.ts), `mintInstallationToken`; the quoted permission line re-read there on 2026-09-15 and unchanged
 Recheck when: the `permissions` object in `mintInstallationToken` changes, or a board's Sessions App installation changes its permissions.
 
 Symptom: `git push` fails with the message above and no commit reaches the branch. The rejection is GitHub's, not the ruleset's; nothing in the repository can relax it.
