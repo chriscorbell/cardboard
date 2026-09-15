@@ -41,12 +41,14 @@ When the work is done, the Session opens a pull request and moves the card to Re
 
 ## How a Session works
 
-1. A human change to a card is a **Trigger**. Triggers on the same card within a minute are batched.
+1. A human change to a card is a **Trigger**. Triggers on the same card within a minute are batched. When more cards are waiting than there are free session slots, the next one is taken by priority, then board order, then age.
 2. kardboard claims the card and asks the **runner** to start a container from the agent image.
 3. The container clones the repository on a branch named after the card and starts the provider CLI with a workflow prompt and the kardboard MCP server.
 4. The Session orients, classifies the request, implements it, runs the repository's acceptance command from `AGENTS.md`, pushes, and opens a pull request.
 5. It reports with one comment and moves the card to Review. Unclear requests go to Blocked with a question instead.
 6. On Approve, kardboard squash-merges through a second GitHub App that bypasses the branch ruleset, deletes the branch, and moves the card to Done.
+
+A request too large for one pull request is split into child cards instead. Each child starts its own session as soon as it is created, the parent waits in Blocked, and it wakes by itself once every child reaches Done — told which of them were merged and which were closed without an implementation. Nothing else the agent does starts a session: a card it creates for a person to act on has no parent and waits in Ready for them.
 
 ## Architecture
 

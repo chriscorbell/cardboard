@@ -125,7 +125,7 @@ function buildServer(session: SessionRow): McpServer {
 
   server.registerTool(
     "create_card",
-    { description: "Create a card in any column except Inbox, which is reserved for humans. Set parent_card_id when splitting a request.", inputSchema: { title: z.string().min(1).max(200), description: z.string().max(20_000).default(""), column: z.enum(COLUMNS.filter((c) => c !== "inbox") as [string, ...string[]]).default("ready"), priority: z.enum(PRIORITIES).default("none"), parent_card_id: z.string().optional() } },
+    { description: "Create a card in any column except Inbox, which is reserved for humans. Set parent_card_id when splitting a request: a child card left in Ready starts its own session immediately, and the parent wakes once every child reaches Done. A card with no parent starts nothing and waits in Ready for a person.", inputSchema: { title: z.string().min(1).max(200), description: z.string().max(20_000).default(""), column: z.enum(COLUMNS.filter((c) => c !== "inbox") as [string, ...string[]]).default("ready"), priority: z.enum(PRIORITIES).default("none"), parent_card_id: z.string().optional() } },
     async ({ title, description, column, priority, parent_card_id }) => {
       if (parent_card_id) await assertBoardCard(parent_card_id);
       const card = await createCard({ boardId: session.boardId, title, description, priority, column: column as (typeof COLUMNS)[number], actor, parentCardId: parent_card_id ?? null });

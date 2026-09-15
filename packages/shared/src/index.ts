@@ -60,8 +60,17 @@ export const TRIGGER_KINDS = [
   // Not raised by a person: the orchestrator raises one when a Session ran out of Provider usage,
   // so the Card is picked up again on the other Provider with the same work in front of it.
   "provider_fallback",
+  // Also not raised by a person. A Session that splits a request into child Cards leaves work
+  // nobody would otherwise start, and a parent that nothing would otherwise wake.
+  "child_card_created",
+  "children_done",
 ] as const;
 export type TriggerKind = (typeof TRIGGER_KINDS)[number];
+
+// What a Card in Done turned out to be. A child Card that was merged carries its parent's work
+// forward; one closed as a duplicate, or as work that was not needed, does not.
+export const CARD_OUTCOMES = ["implemented", "closed"] as const;
+export type CardOutcome = (typeof CARD_OUTCOMES)[number];
 
 // What the app notifies a user about. Every kind also sends that user an email.
 export const NOTIFICATION_KINDS = ["mention", "card_moved"] as const;
@@ -106,6 +115,8 @@ export interface Card {
   creatorKind: ActorKind;
   creatorId: string | null;
   parentCardId: string | null;
+  /** Set when the Card reaches Done, and cleared if it is reopened. */
+  outcome: CardOutcome | null;
   revision: number;
   branch: string | null;
   prUrl: string | null;

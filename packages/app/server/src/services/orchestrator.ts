@@ -13,6 +13,7 @@ import { botIdentity, githubConfigured, mintInstallationToken, parseRepoUrl } fr
 import { providerAfterFailure, providerForDispatch } from "./fallback.js";
 import { readProviderLimits } from "./provider-limits.js";
 import { removePreviewForCard } from "./previews.js";
+import { byDispatchOrder } from "./children.js";
 
 const ACTIVE = ["queued", "starting", "running"] as const;
 
@@ -100,7 +101,35 @@ export function scheduleDispatch(cardId: string, delayMs: number): void {
     coalesceTimers.delete(cardId);
     void dispatch(cardId).catch((err) => console.error("[orchestrator] dispatch failed", err));
   }, delayMs);
+  // A waiting dispatch is a Trigger row before it is a timer, so this one need not hold the process
+  // open: whatever it would have started, `recoverOnBoot` starts after a restart.
+  t.unref();
   coalesceTimers.set(cardId, t);
+}
+
+/**
+ * A Session ended, so a slot may have opened. Cards waiting for one are taken in the Board's own
+ * reading order rather than whichever retry timer happens to fire first: a split request creates
+ * its children at once, and they should start in the order a person would have started them.
+ */
+async function pumpWaiting(): Promise<void> {
+  const rows = await db
+    .select({
+      id: schema.cards.id,
+      priority: schema.cards.priority,
+      position: schema.cards.position,
+      createdAt: schema.cards.createdAt,
+    })
+    .from(schema.triggers)
+    .innerJoin(schema.cards, eq(schema.triggers.cardId, schema.cards.id))
+    .where(eq(schema.triggers.status, "pending"));
+  const waiting = [...new Map(rows.map((r) => [r.id, r])).values()].sort(byDispatchOrder);
+  for (const card of waiting) {
+    if (await activeSessionForCard(card.id)) continue;
+    // `dispatch` re-checks the caps; one Card per freed slot, and the next end pumps again.
+    scheduleDispatch(card.id, 250);
+    return;
+  }
 }
 
 async function dispatch(cardId: string): Promise<void> {
@@ -118,6 +147,8 @@ async function dispatch(cardId: string): Promise<void> {
   const board = (await db.select().from(schema.boards).where(eq(schema.boards.id, card.boardId)).get())!;
   const settings = await getSettings();
   if ((await activeCount(board.id)) >= board.maxConcurrentSessions || (await activeCount()) >= settings.globalMaxConcurrentSessions) {
+    // The retry is the safety net; `pumpWaiting` is what usually picks this Card up, in order,
+    // the moment a Session ends.
     scheduleDispatch(cardId, 30_000);
     return;
   }
@@ -267,6 +298,7 @@ export async function endSession(
     await publishCard(row.cardId);
     if (shouldRerun) scheduleDispatch(row.cardId, 1_000);
   }
+  await pumpWaiting().catch((err) => console.error("[orchestrator] pump failed", err));
 }
 
 /** Whether this ended Session should be picked up again on the other Provider, and which that is. */

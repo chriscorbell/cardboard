@@ -57,6 +57,9 @@ export const cards = sqliteTable(
     creatorKind: text("creator_kind", { enum: ["user", "agent", "system"] }).notNull().default("user"),
     creatorId: text("creator_id"),
     parentCardId: text("parent_card_id"),
+    // How a Card in Done ended: `implemented` when kardboard merged its pull request, `closed`
+    // otherwise. A parent reading its finished children needs to tell the two apart.
+    outcome: text("outcome", { enum: ["implemented", "closed"] }),
     revision: integer("revision").notNull().default(0),
     branch: text("branch"),
     prUrl: text("pr_url"),

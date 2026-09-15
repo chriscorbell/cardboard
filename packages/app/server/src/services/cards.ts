@@ -6,6 +6,7 @@ import { publish } from "./realtime.js";
 import { recordEvent, type Actor } from "./events.js";
 import { enqueueTrigger, closeCardWork } from "./orchestrator.js";
 import { notifyCardMoved } from "./notifications.js";
+import { outcomeOnDone, startsItsOwnSession, wakeParentIfSettled } from "./children.js";
 
 export function toSessionSummary(row: typeof schema.sessions.$inferSelect): SessionSummary {
   return {
@@ -54,6 +55,7 @@ async function hydrate(rows: (typeof schema.cards.$inferSelect)[]): Promise<Card
     creatorKind: r.creatorKind,
     creatorId: r.creatorId,
     parentCardId: r.parentCardId,
+    outcome: r.outcome,
     revision: r.revision,
     branch: r.branch,
     prUrl: r.prUrl,
@@ -140,6 +142,10 @@ export async function createCard(input: {
   publish(card.boardId, { type: "card.upserted", card });
   if (input.actor.kind === "user" && !input.silent) {
     await enqueueTrigger({ card, kind: "card_created", actorUserId: input.actor.id, payload: {} });
+  } else if (startsItsOwnSession(card)) {
+    // A Session split a request into this piece, so this piece starts its own Session: no person
+    // asked for it Card by Card, and nobody should have to touch it for the work to begin.
+    await enqueueTrigger({ card, kind: "child_card_created", actorUserId: null, payload: { parentCardId: card.parentCardId } });
   }
   return card;
 }
@@ -198,6 +204,8 @@ export async function moveCard(
   if (!current) throw new Error("card not found");
   if (current.revision !== input.revision) throw new ConflictError("card changed since you loaded it");
   const columnChanged = current.column !== input.column;
+  const enteringDone = columnChanged && input.column === "done";
+  const leavingDone = columnChanged && current.column === "done";
   await db
     .update(schema.cards)
     .set({
@@ -205,6 +213,8 @@ export async function moveCard(
       position: input.position,
       revision: current.revision + 1,
       updatedAt: new Date().toISOString(),
+      // What the Card came to is recorded as it closes, and forgotten when it is reopened.
+      ...(enteringDone ? { outcome: await outcomeOnDone(id) } : leavingDone ? { outcome: null } : {}),
     })
     .where(eq(schema.cards.id, id));
   let card = (await getCard(id))!;
@@ -227,6 +237,8 @@ export async function moveCard(
     }
   }
   publish(card.boardId, { type: "card.upserted", card });
+  // The last child of a split request reaching Done is what wakes its parent.
+  if (enteringDone) await wakeParentIfSettled(card).catch((err) => console.error("[children] could not wake the parent", err));
   if (columnChanged) void notifyCardMoved(card, current.column, input.actor).catch((err) => console.error("[notify] card moved", err));
   if (columnChanged && input.actor.kind === "user" && input.column !== "done" && !input.silent) {
     await enqueueTrigger({
