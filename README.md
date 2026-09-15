@@ -32,6 +32,7 @@ When the work is done, the Session opens a pull request and moves the card to Re
 - **Approvals bound to code**: an Approval records the pull request commit the reviewer saw. A later push voids it.
 - **Notifications** for mentions and card moves: a bell with an unread badge in the app, and the same thing by email through Resend.
 - **Invite-only access** with Clerk. Only email addresses you add can sign in, each member only sees their boards, and an invitation email tells them where to do it.
+- **Live session transcripts**: expand any run in the admin panel to watch the agent's messages, tool calls, and results arrive as they happen.
 - **Live updates** over server-sent events, verified nightly database snapshots, and an admin panel for users, boards, the agent, sessions, and backups.
 
 ## How a Session works
