@@ -4,7 +4,7 @@ import { db, schema } from "../db/index.js";
 import { newId } from "../ids.js";
 import { recordEvent, type Actor } from "./events.js";
 import { getCard } from "./cards.js";
-import { enqueueTrigger } from "./orchestrator.js";
+import { closeCardWork, enqueueTrigger } from "./orchestrator.js";
 import { publish } from "./realtime.js";
 import { getBoardById } from "./boards.js";
 import { createComment } from "./comments.js";
@@ -73,6 +73,8 @@ export async function approveCard(cardId: string, actor: Actor): Promise<Approva
     if (outcome.ok) {
       await recordEvent({ boardId: card.boardId, cardId, actor: AGENT, type: "card.merged", payload: { prNumber: pr.number, mergeSha: outcome.sha } });
       await deleteBranch(repo.owner, repo.repo, pr.headRef).catch(() => {});
+      // The merge is the end of this card's work: a Session still running on it must not reopen it.
+      await closeCardWork(cardId, AGENT);
       const fresh = (await getCard(cardId))!;
       await moveCard(cardId, { column: "done", position: fresh.position, revision: fresh.revision, actor: AGENT });
       await createComment({ cardId, body: `${mention} Merged pull request #${pr.number} and moved this card to Done.`.trim(), actor: AGENT });

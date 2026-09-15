@@ -57,7 +57,9 @@ Overlapping intents on the Ledger do not block each other. A Session that sees a
 
 A sweep Session holds no Claim, may move Cards and Comment, and never opens pull requests. It runs nightly at 03:00 minicore local time, waits up to one hour for card Sessions on the Board to finish, and counts against the global cap only.
 
-Members see the status indicator and Comments. The Admin can also cancel a Session from the Card. Cardboard stores per Session its status, timings, Provider, outcome summary, and the Comments it posted. Raw logs are written as files on the data bind mount, kept 14 days, and read over SSH only. No transcripts or tool calls appear in the UI.
+Members see the status indicator and Comments. The Admin can also cancel a Session from the Card. Cardboard stores per Session its status, timings, Provider, outcome summary, and the Comments it posted. Raw logs are written as files on the runner's bind mount and kept 14 days; the database never holds a transcript.
+
+The Admin, and only the Admin, can read a Session's transcript: expanding a run in the admin panel tails that log file through the runner and renders it as the agent's messages, tool calls, and results. A running Session is followed live. The provider CLI is therefore run in a streaming output mode, so the log fills as the work happens rather than at exit. Nothing is shown to Members, and nothing is redacted: a transcript carries whatever the agent printed, so it is admin-only for the same reason the log file is.
 
 ## Review, Approval, and merge
 
@@ -80,6 +82,8 @@ Sessions reach Cardboard through an MCP server over HTTP with a session-scoped b
 Triggers: a Mention, and a Card move for the Card's creator. Each trigger both sends an email and records an in-app notification, so the two never disagree. A User is never notified of their own action, and a revoked User is not notified at all.
 
 Resend sends email from `milo@cardboard.xode.cc` (the verified sending domain is `cardboard.xode.cc`) with the sender name set to the Agent's name. Each email carries the Comment body and a deep link to the Card. There is no inbound email; reply-to is a no-reply address. The Admin receives the same emails as any other User.
+
+An Invitation sends its own email, outside the notification triggers: it names the inviting Admin, the Agent, and the address to sign in with, and links to the app rather than to a Card. It goes out when an address is first invited, when an already-invited address is invited again, and when a revoked User is reinstated — the three cases that leave someone waiting to sign in. An active User has already accepted, so re-inviting them sends nothing. The Admin panel can send the invitation again without re-entering the address.
 
 In the app a bell beside the avatar carries a badge with the unread count and opens a panel of the 50 most recent notifications, newest first, with unread ones marked. Opening one marks it read and goes to its Card; the panel can also mark everything read. The panel polls rather than riding a Board's event stream, because it is visible on every page including those outside a Board. A notification is only ever shown to its own User, and only while that User can still open the Board it came from.
 
@@ -113,7 +117,7 @@ These cannot be automated from inside Cardboard: adding the two tunnel hostnames
 
 ## Status
 
-As of 2026-09-14 the stack runs on minicore at `https://cardboard.xode.cc` and the loop has completed on two repositories, including this one: card, Session, pull request, Approval, merge by Cardboard, deploy. Not yet built: runner-hosted Previews and their cookie flow, Provider fallback, invitation emails, and child-Card dispatch. Codex through the egress proxy is built but unproven against the real backend. [docs/design-review.md](design-review.md) records which review findings are resolved.
+As of 2026-09-14 the stack runs on minicore at `https://cardboard.xode.cc` and the loop has completed on two repositories, including this one: card, Session, pull request, Approval, merge by Cardboard, deploy. Not yet built: runner-hosted Previews and their cookie flow, Provider fallback, and child-Card dispatch. Codex through the egress proxy is built but unproven against the real backend. [docs/design-review.md](design-review.md) records which review findings are resolved.
 
 ## Out of scope for v1
 

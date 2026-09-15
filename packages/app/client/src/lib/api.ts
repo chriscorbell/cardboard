@@ -11,6 +11,7 @@ import type {
   MoveCardInput,
   NotificationsView,
   SessionSummary,
+  SessionTranscript,
   Settings,
   UpdateCardInput,
   User,
@@ -192,6 +193,12 @@ export function useAdminSettings() {
 export function useAdminSessions() {
   return useQuery({ queryKey: keys.adminSessions, queryFn: () => request<(SessionSummary & { boardId: string })[]>("/admin/sessions"), refetchInterval: 10_000 });
 }
+// Transcripts are tailed by byte offset rather than cached by react-query: each call returns only
+// what the session has written since `offset`, and the caller keeps the running list.
+export function fetchSessionTranscript(sessionId: string, offset: number) {
+  return request<SessionTranscript>(`/admin/sessions/${sessionId}/transcript?offset=${offset}`);
+}
+
 export function useAdminBackups() {
   return useQuery({ queryKey: keys.adminBackups, queryFn: () => request<BackupsView>("/admin/backups") });
 }

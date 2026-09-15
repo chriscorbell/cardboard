@@ -23,7 +23,13 @@ if [ -n "${CARDBOARD_REPO_URL:-}" ]; then
   git config user.name "${CARDBOARD_GIT_NAME:-Milo}"
   git config user.email "${CARDBOARD_GIT_EMAIL:-cardboard@xode.cc}"
   if [ -n "${CARDBOARD_BRANCH:-}" ]; then
-    git checkout -B "$CARDBOARD_BRANCH" "origin/$CARDBOARD_BRANCH" 2>/dev/null || git checkout -b "$CARDBOARD_BRANCH"
+    # A shallow clone only has the default branch; fetch the card's branch if it already exists.
+    if git fetch --depth=50 origin "refs/heads/$CARDBOARD_BRANCH:refs/remotes/origin/$CARDBOARD_BRANCH" 2>/dev/null; then
+      log "resuming existing branch $CARDBOARD_BRANCH"
+      git checkout -B "$CARDBOARD_BRANCH" "origin/$CARDBOARD_BRANCH"
+    else
+      git checkout -b "$CARDBOARD_BRANCH"
+    fi
   fi
 fi
 
@@ -36,12 +42,14 @@ JSON
     MODEL_ARGS=(); [ -n "${CARDBOARD_MODEL:-}" ] && MODEL_ARGS=(--model "$CARDBOARD_MODEL")
     # Effort level: Claude Code reads CLAUDE_CODE_EFFORT_LEVEL (low, medium, high, max).
     [ -n "${CARDBOARD_REASONING:-}" ] && export CLAUDE_CODE_EFFORT_LEVEL="$CARDBOARD_REASONING"
+    # stream-json, not text: text prints nothing until the run ends, so the container log — which is
+    # what the admin panel shows as the Session's transcript — would stay empty for the whole run.
     exec timeout --signal=TERM "${WALL_CLOCK_MINUTES}m" \
       claude -p "$PROMPT" "${MODEL_ARGS[@]}" \
         --mcp-config /tmp/mcp.json \
         --permission-mode acceptEdits \
         --allowedTools "mcp__cardboard__*,Bash,Read,Edit,Write,Glob,Grep,WebFetch" \
-        --output-format text
+        --output-format stream-json --verbose
     ;;
   codex)
     log "starting codex"

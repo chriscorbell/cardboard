@@ -74,6 +74,10 @@ _Avoid_: Event, webhook, action
 A Session's exclusive hold on its Card, taken by Cardboard when the Session is created and released when it ends.
 _Avoid_: Lock, lease
 
+**Transcript**:
+The record of what a Session did, read from its container log: the Agent's messages, its tool calls and their results. Visible to the Admin only, and live while the Session runs.
+_Avoid_: History, output, trace
+
 **Ledger**:
 A Board's live list of active Sessions, each with its Card, branch, pull request, Provider, and announced intent, read by every Session at start.
 _Avoid_: Registry, status board

@@ -15,9 +15,11 @@ import {
   updateCardSchema,
   updateCommentSchema,
   upsertBoardSchema,
+  ACTIVE_SESSION_STATUSES,
   type BoardView,
   type CardDetail,
   type Me,
+  type SessionTranscript,
 } from "@cardboard/shared";
 import { eq, desc } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
@@ -27,9 +29,12 @@ import { canAccessBoard, createBoard, getBoardById, getBoardBySlug, listAllBoard
 import { ConflictError, createCard, getCard, listCards, listChildren, moveCard, updateCard } from "../services/cards.js";
 import { addAttachment, createComment, getAttachment, getComment, listComments, updateComment } from "../services/comments.js";
 import { getAgentProfile, getSettings, updateSettings } from "../services/settings.js";
-import { inviteUser, listUsers, setUserStatus } from "../services/users.js";
+import { getUser, inviteUser, listUsers, setUserStatus } from "../services/users.js";
+import { sendInvitation } from "../services/email.js";
 import { subscribe } from "../services/realtime.js";
-import { cancelSession, listAllSessions, listBoardSessions } from "../services/orchestrator.js";
+import { cancelSession, getSession, listAllSessions, listBoardSessions } from "../services/orchestrator.js";
+import { runner } from "../services/runner-client.js";
+import { parseTranscript } from "../services/transcript.js";
 import { ApprovalError, approveCard, listApprovals } from "../services/approvals.js";
 import { listNotifications, markNotificationsRead } from "../services/notifications.js";
 import { backupsView, takeSnapshot } from "../services/backup.js";
@@ -241,7 +246,11 @@ const admin = new Hono<{ Variables: AuthVariables }>();
 admin.use("*", requireAdmin);
 
 admin.get("/users", async (c) => c.json(await listUsers()));
-admin.post("/users", zValidator("json", inviteUserSchema), async (c) => c.json(await inviteUser(c.req.valid("json")), 201));
+admin.post("/users", zValidator("json", inviteUserSchema), async (c) => {
+  const user = await inviteUser(c.req.valid("json"));
+  await sendInvitation(user, c.get("user"));
+  return c.json(user, 201);
+});
 admin.post("/users/:id/revoke", async (c) => {
   if (c.req.param("id") === c.get("user").id) return c.json({ error: "cannot revoke yourself" }, 400);
   await setUserStatus(c.req.param("id"), "revoked");
@@ -249,7 +258,15 @@ admin.post("/users/:id/revoke", async (c) => {
 });
 admin.post("/users/:id/reinstate", async (c) => {
   await setUserStatus(c.req.param("id"), "invited");
+  const user = await getUser(c.req.param("id"));
+  if (user) await sendInvitation(user, c.get("user"));
   return c.json({ ok: true });
+});
+// The first invitation can be missed; an Admin can send it again without re-entering the address.
+admin.post("/users/:id/resend-invitation", async (c) => {
+  const user = await getUser(c.req.param("id"));
+  if (!user) return c.json({ error: "not_found" }, 404);
+  return c.json({ sent: await sendInvitation(user, c.get("user")) });
 });
 
 admin.get("/boards", async (c) => {
@@ -288,6 +305,37 @@ admin.post("/backups", async (c) => {
 });
 
 admin.get("/sessions", async (c) => c.json(await listAllSessions()));
+
+// The transcript is the Session's container log, tailed by byte offset: pass back `nextOffset` to
+// get only what has been written since. The runner holds the bytes; the app parses them.
+admin.get("/sessions/:id/transcript", async (c) => {
+  const session = await getSession(c.req.param("id"));
+  if (!session) return c.json({ error: "not_found" }, 404);
+  const requested = Number(c.req.query("offset") ?? "0");
+  const offset = Number.isFinite(requested) ? requested : 0;
+  const empty = (note: string): SessionTranscript => ({ available: false, entries: [], nextOffset: offset, size: 0, skipped: false, note });
+  if (runner.mode === "noop") return c.json(empty("No runner is configured, so nothing was recorded."));
+  let slice;
+  try {
+    slice = await runner.logSlice(session.id, offset);
+  } catch (err) {
+    console.error("[api] transcript unavailable", err);
+    return c.json(empty("The runner did not answer, so the transcript cannot be read right now."));
+  }
+  if (!slice.exists) {
+    return c.json(empty(ACTIVE_SESSION_STATUSES.includes(session.status) ? "Waiting for the session to write its first line." : "No log for this session. It never started, or the log has been pruned."));
+  }
+  const view: SessionTranscript = {
+    available: true,
+    entries: parseTranscript(slice.text),
+    nextOffset: slice.nextOffset,
+    size: slice.size,
+    skipped: slice.skipped,
+    note: null,
+  };
+  return c.json(view);
+});
+
 admin.post("/sessions/:id/cancel", async (c) => {
   const rerun = c.req.query("rerun") === "1";
   await cancelSession(c.req.param("id"), actorOf(c), rerun);

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Paperclip, Send, X } from "lucide-react";
 import type { AgentProfile, User } from "@cardboard/shared";
 import { Avatar, Button, cx, IconButton, Textarea } from "../../components/ui";
+import { composerKeyAction } from "./composerKeys";
 
 type Props = {
   members: User[];
@@ -85,29 +86,30 @@ export function Composer({ members, agent, onSubmit, initialBody = "", submitLab
           detectMention(e.target.value, e.target.selectionStart);
         }}
         onKeyDown={(e) => {
-          if (mention && candidates.length > 0) {
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setHighlight((h) => (h + 1) % candidates.length);
+          const handled = composerKeyAction(
+            { key: e.key, shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey, altKey: e.altKey, isComposing: e.nativeEvent.isComposing },
+            { mentionOpen: mention !== null && candidates.length > 0, canCancel: Boolean(onCancel) },
+          );
+          if (!handled) return;
+          if (handled.preventDefault) e.preventDefault();
+          switch (handled.action.type) {
+            case "mention-move": {
+              const delta = handled.action.delta;
+              setHighlight((h) => (h + delta + candidates.length) % candidates.length);
               return;
             }
-            if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setHighlight((h) => (h - 1 + candidates.length) % candidates.length);
-              return;
-            }
-            if (e.key === "Enter" || e.key === "Tab") {
-              e.preventDefault();
+            case "mention-pick":
               pick(candidates[highlight]!.handle);
               return;
-            }
-            if (e.key === "Escape") {
+            case "mention-close":
               setMention(null);
               return;
-            }
+            case "submit":
+              void submit();
+              return;
+            case "cancel":
+              onCancel?.();
           }
-          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void submit();
-          if (e.key === "Escape" && onCancel) onCancel();
         }}
         onBlur={() => setTimeout(() => setMention(null), 120)}
         className="pr-3"
@@ -168,6 +170,7 @@ export function Composer({ members, agent, onSubmit, initialBody = "", submitLab
           </>
         ) : null}
         <span className="ml-auto flex items-center gap-2">
+          <span className="hidden text-[11px] text-ink-faint sm:inline">Enter to {submitLabel.toLowerCase()}, Shift+Enter for a new line</span>
           {onCancel ? (
             <Button size="sm" variant="ghost" onClick={onCancel}>
               Cancel
