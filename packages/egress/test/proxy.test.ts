@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { after, before, describe, it } from "node:test";
 import { URL } from "node:url";
+import { UsageLimits } from "../src/limits.js";
 import { anthropicHeaders, createProxy, ipAllowed, passThroughHeaders, upstreamPath } from "../src/proxy.js";
 
 type Seen = { method: string; url: string; headers: http.IncomingHttpHeaders; body: string };
@@ -194,6 +195,130 @@ describe("routes that are not a provider", () => {
       assert.equal((await fetch(`${proxy.base}${path}`)).status, 404, path);
     }
     assert.equal(seen.length, 0);
+    await proxy.close();
+    await upstream.close();
+  });
+});
+
+/** Stands in for a provider that has no usage left. */
+function refusingUpstream(headers: Record<string, string>): Promise<{ url: URL; close: () => Promise<void> }> {
+  const server = http.createServer((req, res) => {
+    req.resume();
+    req.on("end", () => {
+      res.writeHead(429, { "content-type": "application/json", ...headers });
+      res.end(JSON.stringify({ error: { type: "rate_limit_error" } }));
+    });
+  });
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as { port: number };
+      resolve({ url: new URL(`http://127.0.0.1:${port}`), close: () => new Promise((r) => server.close(() => r())) });
+    });
+  });
+}
+
+describe("noticing that a provider is out of usage", () => {
+  it("records the refusal and still hands it to the Session", async () => {
+    const upstream = await refusingUpstream({ "retry-after": "1800" });
+    const limits = new UsageLimits();
+    const proxy = await proxyServer(
+      createProxy({ claudeToken: "t", anthropicUpstream: upstream.url, codexUpstream: upstream.url, codex: null, allowedNetworks: [], limits }),
+    );
+
+    const res = await fetch(`${proxy.base}/anthropic/v1/messages`, { method: "POST", body: "{}" });
+    assert.equal(res.status, 429, "the Session sees the provider's own answer, unchanged");
+    assert.deepEqual(await res.json(), { error: { type: "rate_limit_error" } });
+
+    const seen = limits.snapshot();
+    assert.equal(seen.codex, null, "a Claude refusal says nothing about Codex");
+    assert.ok(seen.claude, "the Claude refusal was recorded");
+    const until = Date.parse(seen.claude.until!);
+    assert.ok(until > Date.now() + 1_700_000 && until <= Date.now() + 1_800_000, `window reopens in about half an hour, got ${seen.claude.until}`);
+
+    await proxy.close();
+    await upstream.close();
+  });
+
+  it("attributes a refusal on the Codex route to Codex", async () => {
+    const upstream = await refusingUpstream({});
+    const limits = new UsageLimits();
+    const proxy = await proxyServer(
+      createProxy({
+        claudeToken: "t",
+        anthropicUpstream: upstream.url,
+        codexUpstream: upstream.url,
+        codex: { headers: async () => ({ authorization: "Bearer real", accountId: null }) },
+        allowedNetworks: [],
+        limits,
+      }),
+    );
+
+    assert.equal((await fetch(`${proxy.base}/openai/responses`, { method: "POST", body: "{}" })).status, 429);
+    const seen = limits.snapshot();
+    assert.equal(seen.claude, null);
+    assert.equal(seen.codex?.until, null, "this provider named no window");
+    assert.ok(seen.codex?.at);
+
+    await proxy.close();
+    await upstream.close();
+  });
+
+  it("records nothing when the provider answers normally", async () => {
+    const seen: Seen[] = [];
+    const upstream = await upstreamServer(seen);
+    const limits = new UsageLimits();
+    const proxy = await proxyServer(
+      createProxy({ claudeToken: "t", anthropicUpstream: upstream.url, codexUpstream: upstream.url, codex: null, allowedNetworks: [], limits }),
+    );
+    await fetch(`${proxy.base}/anthropic/v1/messages`, { method: "POST", body: "{}" });
+    assert.deepEqual(limits.snapshot(), { claude: null, codex: null });
+    await proxy.close();
+    await upstream.close();
+  });
+});
+
+describe("serving the limits to the app", () => {
+  it("answers the control token and refuses a Session that has none", async () => {
+    const upstream = await refusingUpstream({ "retry-after": "60" });
+    const limits = new UsageLimits();
+    const proxy = await proxyServer(
+      createProxy({
+        claudeToken: "t",
+        anthropicUpstream: upstream.url,
+        codexUpstream: upstream.url,
+        codex: null,
+        allowedNetworks: [],
+        limits,
+        controlToken: "control-token",
+      }),
+    );
+
+    await fetch(`${proxy.base}/anthropic/v1/messages`, { method: "POST", body: "{}" });
+
+    const refused = await fetch(`${proxy.base}/limits`);
+    assert.equal(refused.status, 401, "a Session container can reach this proxy and must not read it");
+    assert.deepEqual(await refused.json(), { error: "unauthorized" });
+
+    const wrong = await fetch(`${proxy.base}/limits`, { headers: { authorization: "Bearer guess" } });
+    assert.equal(wrong.status, 401);
+
+    const ok = await fetch(`${proxy.base}/limits`, { headers: { authorization: "Bearer control-token" } });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), limits.snapshot());
+
+    await proxy.close();
+    await upstream.close();
+  });
+
+  it("is open when no control token is configured, which is the dev case", async () => {
+    const seen: Seen[] = [];
+    const upstream = await upstreamServer(seen);
+    const proxy = await proxyServer(
+      createProxy({ claudeToken: "t", anthropicUpstream: upstream.url, codexUpstream: upstream.url, codex: null, allowedNetworks: [] }),
+    );
+    const res = await fetch(`${proxy.base}/limits`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { claude: null, codex: null });
     await proxy.close();
     await upstream.close();
   });

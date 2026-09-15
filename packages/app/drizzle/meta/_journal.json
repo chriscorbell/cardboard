@@ -22,6 +22,13 @@
       "when": 1789420557915,
       "tag": "0002_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789434178560,
+      "tag": "0003_solid_gambit",
+      "breakpoints": true
     }
   ]
 }

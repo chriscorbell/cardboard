@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
-import { slugifyBranch, type Card, type SessionSummary, type TriggerKind } from "@cardboard/shared";
+import { PROVIDERS, slugifyBranch, type Card, type Provider, type SessionStatus, type SessionSummary, type TriggerKind } from "@cardboard/shared";
 import { db, schema } from "../db/index.js";
 import { env } from "../env.js";
 import { newId } from "../ids.js";
@@ -10,6 +10,8 @@ import { getSettings } from "./settings.js";
 import { runner } from "./runner-client.js";
 import { buildSessionPrompt } from "./prompt.js";
 import { botIdentity, githubConfigured, mintInstallationToken, parseRepoUrl } from "./github.js";
+import { providerAfterFailure, providerForDispatch } from "./fallback.js";
+import { readProviderLimits } from "./provider-limits.js";
 
 const ACTIVE = ["queued", "starting", "running"] as const;
 
@@ -22,6 +24,7 @@ function summary(row: typeof schema.sessions.$inferSelect): SessionSummary {
     kind: row.kind,
     status: row.status,
     provider: row.provider,
+    fallbackFrom: row.fallbackFrom,
     intent: row.intent,
     branch: row.branch,
     cardId: row.cardId,
@@ -46,6 +49,17 @@ async function activeCount(boardId?: string): Promise<number> {
     : inArray(schema.sessions.status, [...ACTIVE]);
   const row = await db.select({ n: sql<number>`count(*)` }).from(schema.sessions).where(where).get();
   return Number(row?.n ?? 0);
+}
+
+function isProvider(value: unknown): value is Provider {
+  return typeof value === "string" && (PROVIDERS as readonly string[]).includes(value);
+}
+
+/** The Provider a `provider_fallback` Trigger in this batch asks for, if one is there. */
+function fallbackTarget(pending: (typeof schema.triggers.$inferSelect)[]): Provider | null {
+  const trigger = pending.find((t) => t.kind === "provider_fallback");
+  const to = trigger?.payload.to;
+  return isProvider(to) ? to : null;
 }
 
 async function publishCard(cardId: string) {
@@ -107,6 +121,14 @@ async function dispatch(cardId: string): Promise<void> {
     return;
   }
 
+  // Which Provider this run uses. A fallback Trigger names one outright; otherwise the Board's
+  // Provider, unless it is out of usage and the other is not.
+  const limits = await readProviderLimits();
+  const requested = fallbackTarget(pending);
+  const chosen = requested
+    ? { provider: requested, switched: requested !== board.provider }
+    : providerForDispatch({ enabled: settings.providerFallback, preferred: board.provider, limits, nowMs: Date.now() });
+
   // Claim: the Session row is the Claim. One active Session per Card is enforced by activeSessionForCard above.
   const sessionId = newId();
   const token = randomBytes(32).toString("base64url");
@@ -116,11 +138,21 @@ async function dispatch(cardId: string): Promise<void> {
     boardId: board.id,
     cardId: card.id,
     kind: "card",
-    provider: board.provider,
+    provider: chosen.provider,
+    fallbackFrom: chosen.switched ? board.provider : null,
     status: "queued",
     branch,
     tokenHash: createHash("sha256").update(token).digest("hex"),
   });
+  if (chosen.switched) {
+    await recordEvent({
+      boardId: board.id,
+      cardId: card.id,
+      actor: SYSTEM_ACTOR,
+      type: "session.provider_fallback",
+      payload: { sessionId, from: board.provider, to: chosen.provider },
+    });
+  }
   await db
     .update(schema.triggers)
     .set({ status: "consumed", sessionId })
@@ -143,8 +175,10 @@ async function dispatch(cardId: string): Promise<void> {
     const { containerId } = await runner.start({
       sessionId,
       boardSlug: board.slug,
-      provider: board.provider,
-      model: board.model,
+      provider: chosen.provider,
+      // A Board's model names one Provider's model and means nothing to the other, so a run on the
+      // other Provider takes its default. Reasoning levels are Cardboard's own vocabulary and carry.
+      model: chosen.switched ? null : board.model,
       reasoning: board.reasoning,
       image: board.agentImage,
       repoUrl: board.repoUrl,
@@ -203,14 +237,53 @@ export async function endSession(
   await recordEvent({ boardId: row.boardId, cardId: row.cardId, actor: SYSTEM_ACTOR, type: `session.${status}`, payload: { sessionId, outcomeSummary } });
   await publishSession(sessionId);
   if (row.cardId) {
+    // A Session the Provider refused for want of usage is picked up again on the other Provider.
+    // The Trigger carries that decision, so it survives a restart between here and the dispatch,
+    // and the next Session is told in its prompt why it was started.
+    const fallbackTo = opts.rerun === undefined ? await planFallback(row, status) : null;
+    if (fallbackTo) {
+      await db.insert(schema.triggers).values({
+        id: newId(),
+        boardId: row.boardId,
+        cardId: row.cardId,
+        kind: "provider_fallback" satisfies TriggerKind,
+        actorUserId: null,
+        payload: { from: row.provider, to: fallbackTo, sessionId },
+      });
+      await recordEvent({
+        boardId: row.boardId,
+        cardId: row.cardId,
+        actor: SYSTEM_ACTOR,
+        type: "session.provider_fallback",
+        payload: { sessionId, from: row.provider, to: fallbackTo },
+      });
+    }
     const card = await db.select().from(schema.cards).where(eq(schema.cards.id, row.cardId)).get();
-    const shouldRerun = opts.rerun ?? (card?.pendingRerun && status !== "cancelled");
+    const shouldRerun = opts.rerun ?? (fallbackTo !== null || (card?.pendingRerun && status !== "cancelled"));
     if (!shouldRerun && card?.pendingRerun) {
       await db.update(schema.cards).set({ pendingRerun: false }).where(eq(schema.cards.id, row.cardId));
     }
     await publishCard(row.cardId);
     if (shouldRerun) scheduleDispatch(row.cardId, 1_000);
   }
+}
+
+/** Whether this ended Session should be picked up again on the other Provider, and which that is. */
+async function planFallback(row: typeof schema.sessions.$inferSelect, status: SessionStatus): Promise<Provider | null> {
+  if (status !== "failed") return null;
+  const settings = await getSettings();
+  if (!settings.providerFallback) return null;
+  return providerAfterFailure({
+    enabled: true,
+    status,
+    provider: row.provider,
+    fallbackFrom: row.fallbackFrom,
+    // A Session that never started still made no provider call, but one refused in the seconds
+    // before its row was stamped is the same outage; `createdAt` is the honest lower bound.
+    since: row.startedAt ?? row.createdAt,
+    limits: await readProviderLimits(),
+    nowMs: Date.now(),
+  });
 }
 
 // Human closure: cancel the Claim holder, drop queued Triggers, and clear the re-run flag.

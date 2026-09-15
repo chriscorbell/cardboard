@@ -1,6 +1,7 @@
 import http from "node:http";
 import { URL } from "node:url";
 import { CodexCredential } from "./codex-credential.js";
+import { UsageLimits } from "./limits.js";
 import { createProxy } from "./proxy.js";
 
 // Credential-injecting egress proxy. Session containers never hold the provider token; they send
@@ -9,21 +10,25 @@ import { createProxy } from "./proxy.js";
 // Routes:
 //   /anthropic/* -> https://api.anthropic.com/*              (Claude Code with ANTHROPIC_BASE_URL)
 //   /openai/*    -> https://chatgpt.com/backend-api/codex/*  (Codex with a named model provider)
+//   /limits      -> the last usage refusal seen per Provider (the app, with the control token)
 //
 // Verified 2026-09-14: a raw /v1/messages call from a workload container with no credential
 // received a model reply through this proxy, so the bearer plus oauth beta rewrite is accepted
 // upstream. Claude Code itself is launched with a placeholder ANTHROPIC_API_KEY so it uses the
 // API-key path; the x-api-key header it sends is dropped here.
 //
-// The /openai route is off unless CODEX_AUTH_FILE names a Codex sign-in file, and it has not yet
-// been exercised against the real ChatGPT backend. See docs/adr/0002 for what that leaves open.
+// Verified 2026-09-15: the /openai route reached the real ChatGPT backend and a Codex Session
+// holding no credential completed a turn through it. The route is off unless CODEX_AUTH_FILE
+// names a Codex sign-in file.
 
 const port = Number(process.env.PORT ?? "8787");
 const claudeToken = process.env.CLAUDE_CODE_OAUTH_TOKEN ?? "";
 const codexAuthFile = process.env.CODEX_AUTH_FILE ?? "";
+const controlToken = process.env.EGRESS_CONTROL_TOKEN ?? "";
 
 if (!claudeToken) console.warn("[egress] CLAUDE_CODE_OAUTH_TOKEN is empty; Claude Code requests will fail upstream");
 if (!codexAuthFile) console.warn("[egress] CODEX_AUTH_FILE is empty; Codex requests are refused and Sessions must mount the sign-in file");
+if (!controlToken) console.warn("[egress] EGRESS_CONTROL_TOKEN is empty; /limits is readable by anything that can reach this proxy, Session containers included");
 
 const codex = codexAuthFile
   ? new CodexCredential(codexAuthFile, {
@@ -40,6 +45,8 @@ const server = http.createServer(
     codexUpstream: new URL(process.env.EGRESS_CODEX_UPSTREAM ?? "https://chatgpt.com/backend-api/codex"),
     codex,
     allowedNetworks: (process.env.EGRESS_ALLOWED_CIDRS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    limits: new UsageLimits(),
+    controlToken,
   }),
 );
 

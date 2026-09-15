@@ -126,6 +126,9 @@ export const sessions = sqliteTable(
     cardId: text("card_id"),
     kind: text("kind", { enum: ["card", "sweep"] }).notNull().default("card"),
     provider: text("provider", { enum: ["claude", "codex"] }).notNull(),
+    // The Provider this Session was moved off because it had no usage left. Also the stop on a
+    // fallback loop: a Session that already fell back does not fall back again.
+    fallbackFrom: text("fallback_from", { enum: ["claude", "codex"] }),
     status: text("status", {
       enum: ["queued", "starting", "running", "succeeded", "failed", "cancelled", "timed_out"],
     })

@@ -7,6 +7,9 @@ const DEFAULTS: Settings = {
   agentAvatarUrl: "/brand/milo.png",
   globalMaxConcurrentSessions: 4,
   sessionWallClockMinutes: 45,
+  // On by default: both Providers now keep their credential in the egress proxy, which is the
+  // condition ADR 0002 put on entering the other one automatically.
+  providerFallback: true,
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -25,6 +28,10 @@ export async function getSettings(): Promise<Settings> {
         break;
       case "sessionWallClockMinutes":
         out.sessionWallClockMinutes = Number(r.value);
+        break;
+      case "providerFallback":
+        // Stored by `updateSettings` as String(boolean); anything else is an older or hand-edited row.
+        out.providerFallback = r.value !== "false";
         break;
     }
   }

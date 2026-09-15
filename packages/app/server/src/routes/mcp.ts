@@ -12,7 +12,7 @@ import { db, schema } from "../db/index.js";
 import { env } from "../env.js";
 import { findSessionByToken, endSession, listBoardSessions } from "../services/orchestrator.js";
 import { getBoardById } from "../services/boards.js";
-import { createCard, getCard, listCards, moveCard, setCardWorkState } from "../services/cards.js";
+import { createCard, getCard, listCards, moveCard, setCardWorkState, toSessionSummary } from "../services/cards.js";
 import { createComment, getAttachment, listComments } from "../services/comments.js";
 import { getUsersByIds } from "../services/users.js";
 import { recordEvent } from "../services/events.js";
@@ -47,7 +47,7 @@ function buildServer(session: SessionRow): McpServer {
     async ({ intent }) => {
       await db.update(schema.sessions).set({ intent }).where(eq(schema.sessions.id, session.id));
       const row = (await db.select().from(schema.sessions).where(eq(schema.sessions.id, session.id)).get())!;
-      publish(session.boardId, { type: "session.updated", session: { id: row.id, kind: row.kind, status: row.status, provider: row.provider, intent: row.intent, branch: row.branch, cardId: row.cardId, startedAt: row.startedAt, endedAt: row.endedAt, outcomeSummary: row.outcomeSummary, createdAt: row.createdAt } });
+      publish(session.boardId, { type: "session.updated", session: toSessionSummary(row) });
       if (session.cardId) publish(session.boardId, { type: "card.upserted", card: (await getCard(session.cardId))! });
       return { content: [{ type: "text", text: "ok" }] };
     },

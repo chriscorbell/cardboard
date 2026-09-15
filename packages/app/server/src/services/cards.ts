@@ -13,6 +13,7 @@ export function toSessionSummary(row: typeof schema.sessions.$inferSelect): Sess
     kind: row.kind,
     status: row.status,
     provider: row.provider,
+    fallbackFrom: row.fallbackFrom,
     intent: row.intent,
     branch: row.branch,
     cardId: row.cardId,

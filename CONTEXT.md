@@ -67,7 +67,7 @@ The coding-agent product a Session runs on: Claude Code or Codex.
 _Avoid_: Model, backend, harness
 
 **Trigger**:
-A human change to a Board that starts or queues a Session on the affected Card: creating a Card, editing its description, posting a Comment, or moving it between Columns.
+A human change to a Board that starts or queues a Session on the affected Card: creating a Card, editing its description, posting a Comment, or moving it between Columns. Cardboard itself writes one kind, `provider_fallback`, when a Session's Provider ran out of usage and the Card should be picked up again on the other one.
 _Avoid_: Event, webhook, action
 
 **Claim**:

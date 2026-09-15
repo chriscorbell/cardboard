@@ -50,6 +50,18 @@ export function AgentTab() {
             <Input type="number" min={5} max={240} value={draft.sessionWallClockMinutes} onChange={(e) => setDraft({ ...draft, sessionWallClockMinutes: Number(e.target.value) })} />
           </Field>
         </div>
+        <label className="flex items-start gap-2 text-[13px] text-ink-muted">
+          <input
+            type="checkbox"
+            checked={draft.providerFallback}
+            onChange={(e) => setDraft({ ...draft, providerFallback: e.target.checked })}
+            className="mt-[3px] accent-accent"
+          />
+          <span>
+            Provider fallback: when a session's provider runs out of usage, pick the card up again on the other one. Both subscriptions keep their credential in the egress
+            proxy, so a fallback does not move a token anywhere. The board's model is left to the other provider's default, since a model name belongs to one of them.
+          </span>
+        </label>
         {save.isError ? <p className="text-[13px] text-danger">{save.error.message}</p> : null}
         <div>
           <Button type="submit" variant="primary" loading={save.isPending}>

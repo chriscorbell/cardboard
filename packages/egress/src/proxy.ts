@@ -2,6 +2,7 @@ import http from "node:http";
 import https from "node:https";
 import { URL } from "node:url";
 import type { CodexCredential } from "./codex-credential.js";
+import { isUsageLimit, UsageLimits, type Provider } from "./limits.js";
 
 // The request handling half of the egress proxy, kept apart from the process so a test can drive it
 // against a local upstream. `index.ts` builds the config from the environment and listens.
@@ -12,6 +13,10 @@ export type ProxyConfig = {
   codexUpstream: URL;
   codex: Pick<CodexCredential, "headers"> | null;
   allowedNetworks: string[];
+  /** Usage refusals seen on the way back from the providers. The app reads them from `/limits`. */
+  limits?: UsageLimits;
+  /** Guards `/limits`. Session containers reach this proxy too and have no reason to read it. */
+  controlToken?: string;
 };
 
 const HOP_BY_HOP = new Set(["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "host", "content-length"]);
@@ -58,11 +63,12 @@ export function upstreamPath(upstream: URL, targetPath: string): string {
 }
 
 export function createProxy(config: ProxyConfig): http.RequestListener {
+  const limits = config.limits ?? new UsageLimits();
   // A test points an upstream at a local http server; production upstreams are https.
   const request = (options: https.RequestOptions, cb: (res: http.IncomingMessage) => void) =>
     options.protocol === "http:" ? http.request(options, cb) : https.request(options, cb);
 
-  function forward(req: http.IncomingMessage, res: http.ServerResponse, upstream: URL, targetPath: string, headers: Record<string, string>) {
+  function forward(req: http.IncomingMessage, res: http.ServerResponse, provider: Provider, upstream: URL, targetPath: string, headers: Record<string, string>) {
     const proxied = request(
       {
         protocol: upstream.protocol,
@@ -73,6 +79,12 @@ export function createProxy(config: ProxyConfig): http.RequestListener {
         headers,
       },
       (up) => {
+        // The refusal still reaches the Session, which may retry through it; the app only acts on
+        // one when the Session went on to fail. Recording it costs nothing either way.
+        if (isUsageLimit(up.statusCode)) {
+          const limit = limits.note(provider, up.headers);
+          console.warn(`[egress] ${provider} refused a request for want of usage; window reopens ${limit.until ?? "at an unstated time"}`);
+        }
         const outHeaders: Record<string, string | string[]> = {};
         for (const [k, v] of Object.entries(up.headers)) if (v !== undefined && !HOP_BY_HOP.has(k)) outHeaders[k] = v;
         res.writeHead(up.statusCode ?? 502, outHeaders);
@@ -99,8 +111,22 @@ export function createProxy(config: ProxyConfig): http.RequestListener {
       return;
     }
 
+    // What the app needs to decide whether to fall a Card's Session back to the other Provider. It
+    // says nothing about the credential itself, only that the subscription is out of usage.
+    if (req.url === "/limits") {
+      req.resume();
+      if (config.controlToken && (req.headers["authorization"] ?? "") !== `Bearer ${config.controlToken}`) {
+        res.writeHead(401, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(limits.snapshot()));
+      return;
+    }
+
     if (req.url?.startsWith("/anthropic/")) {
-      forward(req, res, config.anthropicUpstream, req.url.slice("/anthropic".length), anthropicHeaders(req.headers, config.anthropicUpstream, config.claudeToken));
+      forward(req, res, "claude", config.anthropicUpstream, req.url.slice("/anthropic".length), anthropicHeaders(req.headers, config.anthropicUpstream, config.claudeToken));
       return;
     }
 
@@ -121,7 +147,7 @@ export function createProxy(config: ProxyConfig): http.RequestListener {
         .then(({ authorization, accountId }) => {
           headers["authorization"] = authorization;
           if (accountId) headers["chatgpt-account-id"] = accountId;
-          forward(req, res, config.codexUpstream, targetPath, headers);
+          forward(req, res, "codex", config.codexUpstream, targetPath, headers);
         })
         .catch((err: Error) => {
           console.error("[egress] codex credential error", err.message);
