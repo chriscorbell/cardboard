@@ -123,7 +123,7 @@ This repository is a pnpm monorepo in TypeScript with packages for `app` (Vite +
 
 ## Manual steps the Admin performs
 
-These need host or vendor account access: applying `deploy/network-isolation.sh` to the host firewall, configuring the Cloudflare apex and wildcard tunnel routes, setting `CARDBOARD_PREVIEW_SECRET` in `deploy/.env`, verifying `kardboard.cc` in Resend, creating and installing the two GitHub Apps ([deploy/github-apps.md](../deploy/github-apps.md)), configuring Clerk and Google sign-in, and generating the Claude Code long-lived token with `claude setup-token`. [Domain configuration](runbooks/domains.md) records the current routing, authentication, and email setup. Preparing a repository, including its branch ruleset, is scripted for an agent in the `cardboard-onboard` skill in [chriscorbell/skills](https://github.com/chriscorbell/skills/tree/main/cardboard-onboard).
+These need host or vendor account access: applying `deploy/network-isolation.sh` to the host firewall, configuring the Cloudflare apex and wildcard tunnel routes, setting `CARDBOARD_PREVIEW_SECRET` in `deploy/.env`, verifying `kardboard.cc` in Resend, creating and installing the two GitHub Apps ([deploy/github-apps.md](../deploy/github-apps.md)), configuring Clerk and Google sign-in, and generating the Claude Code long-lived token with `claude setup-token`. [Domain configuration](runbooks/domains.md) records the current routing, authentication, and email setup. Preparing a repository, including its branch ruleset, is scripted for an agent in the `kardboard-onboard` skill in [chriscorbell/skills](https://github.com/chriscorbell/skills/tree/main/kardboard-onboard).
 
 ## Status
 

@@ -19,7 +19,7 @@ function githubApp(prefix: string) {
   const b64 = str(`${prefix}_PRIVATE_KEY_B64`);
   return {
     id: str(`${prefix}_ID`),
-    slug: str(`${prefix}_SLUG`, prefix === "GITHUB_SESSIONS_APP" ? "cardboard-sessions" : "cardboard"),
+    slug: str(`${prefix}_SLUG`, prefix === "GITHUB_SESSIONS_APP" ? "kardboard-sessions" : "kardboard-merge"),
     privateKey: b64 ? Buffer.from(b64, "base64").toString("utf8") : "",
   };
 }
