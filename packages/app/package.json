@@ -11,8 +11,8 @@
     "build:client": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "start": "node dist/server/index.js",
-    "test": "node --import tsx --test server/test/*.test.ts",
-    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.test.json",
+    "test": "node --import tsx --test server/test/*.test.ts client/test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.test.json && tsc -p tsconfig.client-test.json",
     "db:generate": "drizzle-kit generate",
     "seed": "tsx server/src/seed.ts"
   },
