@@ -139,6 +139,17 @@ export function useApproveCard(slug: string) {
   });
 }
 
+export function useRetryMerge(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => request(`/cards/${id}/retry-merge`, { method: "POST" }),
+    onSuccess: (_r, id) => {
+      void qc.invalidateQueries({ queryKey: keys.card(id) });
+      void qc.invalidateQueries({ queryKey: keys.board(slug) });
+    },
+  });
+}
+
 export function useCreateComment(cardId: string) {
   const qc = useQueryClient();
   return useMutation({

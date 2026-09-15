@@ -17,7 +17,11 @@ Approval is recorded with the pull request head SHA the Member reviewed, and the
 SHA as GitHub's precondition. A push after Approval makes the merge fail with 409, which
 invalidates the Approval and asks the Member to look again. A pull request that is not mergeable
 sends the approval trigger to a Session to update the branch, and its push likewise needs a fresh
-Approval.
+Approval. Any other refusal — a failing required check, a permission GitHub has not granted the
+merge app, a rate limit — says nothing about what the Member reviewed, so the Approval survives it
+with the reason recorded, and the Card offers Retry merge. The retry sends the same reviewed SHA
+as its precondition, so a push in the meantime turns it into the 409 case and asks for a fresh
+Approval rather than merging something nobody saw.
 
 ## Consequences
 
