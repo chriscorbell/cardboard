@@ -39,12 +39,14 @@ case "$CARDBOARD_PROVIDER" in
     MODEL_ARGS=(); [ -n "${CARDBOARD_MODEL:-}" ] && MODEL_ARGS=(--model "$CARDBOARD_MODEL")
     # Effort level: Claude Code reads CLAUDE_CODE_EFFORT_LEVEL (low, medium, high, max).
     [ -n "${CARDBOARD_REASONING:-}" ] && export CLAUDE_CODE_EFFORT_LEVEL="$CARDBOARD_REASONING"
+    # stream-json, not text: text prints nothing until the run ends, so the container log — which is
+    # what the admin panel shows as the Session's transcript — would stay empty for the whole run.
     exec timeout --signal=TERM "${WALL_CLOCK_MINUTES}m" \
       claude -p "$PROMPT" "${MODEL_ARGS[@]}" \
         --mcp-config /tmp/mcp.json \
         --permission-mode acceptEdits \
         --allowedTools "mcp__cardboard__*,Bash,Read,Edit,Write,Glob,Grep,WebFetch" \
-        --output-format text
+        --output-format stream-json --verbose
     ;;
   codex)
     log "starting codex"

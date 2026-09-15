@@ -129,6 +129,33 @@ export interface SessionSummary {
   createdAt: string;
 }
 
+// ---- session transcripts ----
+// A Session's container log is the transcript. The runner keeps the bytes; the app parses them
+// into entries so the admin panel can render a run as it happens instead of a wall of JSON.
+export const TRANSCRIPT_ENTRY_KINDS = ["system", "thinking", "text", "tool", "tool_result", "result", "log"] as const;
+export type TranscriptEntryKind = (typeof TRANSCRIPT_ENTRY_KINDS)[number];
+
+export interface TranscriptEntry {
+  at: string | null;
+  kind: TranscriptEntryKind;
+  label: string | null;
+  body: string;
+  truncated: boolean;
+  isError: boolean;
+}
+
+export interface SessionTranscript {
+  // false when the runner has no log for this session: it never ran, or the log has been pruned.
+  available: boolean;
+  entries: TranscriptEntry[];
+  // Byte offset to ask for next. Pass it back to get only what has been written since.
+  nextOffset: number;
+  size: number;
+  // The requested offset was too far behind the head, so entries start mid-run.
+  skipped: boolean;
+  note: string | null;
+}
+
 export interface Attachment {
   id: string;
   commentId: string;

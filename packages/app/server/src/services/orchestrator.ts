@@ -252,6 +252,11 @@ export async function listBoardSessions(boardId: string, limit = 50): Promise<Se
   return rows.map(summary);
 }
 
+export async function getSession(sessionId: string): Promise<SessionSummary | null> {
+  const row = await db.select().from(schema.sessions).where(eq(schema.sessions.id, sessionId)).get();
+  return row ? summary(row) : null;
+}
+
 export async function listAllSessions(limit = 100): Promise<(SessionSummary & { boardId: string })[]> {
   const rows = await db.select().from(schema.sessions).orderBy(sql`${schema.sessions.createdAt} desc`).limit(limit);
   return rows.map((r) => ({ ...summary(r), boardId: r.boardId }));

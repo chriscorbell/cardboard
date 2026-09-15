@@ -24,12 +24,25 @@ export interface RunnerInventoryItem {
   status: string;
 }
 
+// A slice of a Session's container log, whole lines only. Mirrors the runner's `readLogSlice`.
+export interface RunnerLogSlice {
+  exists: boolean;
+  size: number;
+  offset: number;
+  nextOffset: number;
+  text: string;
+  skipped: boolean;
+}
+
 export interface RunnerClient {
   readonly mode: "http" | "noop";
   start(req: StartSessionRequest): Promise<{ containerId: string }>;
   stop(containerId: string): Promise<void>;
   inventory(): Promise<RunnerInventoryItem[]>;
+  logSlice(sessionId: string, offset: number): Promise<RunnerLogSlice>;
 }
+
+const NO_LOG: RunnerLogSlice = { exists: false, size: 0, offset: 0, nextOffset: 0, text: "", skipped: false };
 
 class HttpRunner implements RunnerClient {
   readonly mode = "http" as const;
@@ -61,6 +74,13 @@ class HttpRunner implements RunnerClient {
     if (!res.ok) throw new Error(`runner inventory failed: ${res.status}`);
     return (await res.json()) as RunnerInventoryItem[];
   }
+  async logSlice(sessionId: string, offset: number): Promise<RunnerLogSlice> {
+    const url = `${this.baseUrl}/sessions/${encodeURIComponent(sessionId)}/log?offset=${Math.max(0, Math.floor(offset))}`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (res.status === 404) return NO_LOG;
+    if (!res.ok) throw new Error(`runner log failed: ${res.status}`);
+    return (await res.json()) as RunnerLogSlice;
+  }
 }
 
 // Used when no runner is configured: the Session is recorded and shown, but nothing runs.
@@ -72,6 +92,9 @@ class NoopRunner implements RunnerClient {
   async stop(): Promise<void> {}
   async inventory(): Promise<RunnerInventoryItem[]> {
     return [];
+  }
+  async logSlice(): Promise<RunnerLogSlice> {
+    return NO_LOG;
   }
 }
 
