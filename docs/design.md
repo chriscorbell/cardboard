@@ -115,7 +115,7 @@ This repository is a pnpm monorepo in TypeScript with packages for `app` (Vite +
 
 ## Manual steps the Admin performs
 
-These cannot be automated from inside Cardboard: adding the two tunnel hostnames in the Cloudflare dashboard, verifying `cardboard.xode.cc` in Resend, creating the two GitHub Apps and installing both on each repository ([deploy/github-apps.md](../deploy/github-apps.md)), creating the Clerk application (a secondary application on `cardboard.xode.cc` with Google sign-in), and generating the Claude Code long-lived token with `claude setup-token`. Preparing a repository, including its branch ruleset, is scripted for an agent in [skills/cardboard-onboard](../skills/cardboard-onboard/SKILL.md).
+These cannot be automated from inside Cardboard: adding the two tunnel hostnames in the Cloudflare dashboard, verifying `cardboard.xode.cc` in Resend, creating the two GitHub Apps and installing both on each repository ([deploy/github-apps.md](../deploy/github-apps.md)), creating the Clerk application (a secondary application on `cardboard.xode.cc` with Google sign-in), and generating the Claude Code long-lived token with `claude setup-token`. Preparing a repository, including its branch ruleset, is scripted for an agent in the `cardboard-onboard` skill in [chriscorbell/skills](https://github.com/chriscorbell/skills/tree/main/cardboard-onboard).
 
 ## Status
 

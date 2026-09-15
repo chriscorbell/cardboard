@@ -18,7 +18,7 @@ Read this index and [the protocol](protocol.md) when starting or resuming a sess
 - [Design](../design.md): the agreed v1 design, dated 2026-09-13, with links to the decision records.
 - [Decision records](../adr/): eight ADRs covering identity, credentials, egress, storage, the runner, Approval, GitHub tokens, and the two-app merge authority.
 - [Design review](../design-review.md): eight findings against the design, dated 2026-09-13, with a status header saying which are resolved. Read before implementing Previews or child-Card dispatch; it does not supersede accepted decisions.
-- [GitHub Apps guide](../../deploy/github-apps.md) and the [cardboard-onboard skill](../../skills/cardboard-onboard/SKILL.md): how a repository is prepared for a board.
+- [GitHub Apps guide](../../deploy/github-apps.md) and the [cardboard-onboard skill](https://github.com/chriscorbell/skills/tree/main/cardboard-onboard): how a repository is prepared for a board.
 - [README](../../README.md): how to run, build, and deploy; the Status section says what is not built.
 
 ## Review record

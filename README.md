@@ -105,7 +105,7 @@ External services you need to set up once:
 
 ## Onboarding a repository
 
-Each board points at one repository. To prepare one, run the `cardboard-onboard` skill from `skills/` in that repository with your coding agent, or follow the same steps by hand: give `AGENTS.md` a verified acceptance command, install both GitHub Apps, create the `cardboard` ruleset, and add the board in the admin panel.
+Each board points at one repository. To prepare one, run the `cardboard-onboard` skill from [chriscorbell/skills](https://github.com/chriscorbell/skills) in that repository with your coding agent, or follow the same steps by hand: give `AGENTS.md` a verified acceptance command, install both GitHub Apps, create the `cardboard` ruleset, and add the board in the admin panel.
 
 > [!NOTE]
 > Cardboard is itself a board on Cardboard. Some of its own changes arrive as pull requests from Milo.
