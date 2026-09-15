@@ -23,6 +23,9 @@ export const boards = sqliteTable("boards", {
   model: text("model"),
   reasoning: text("reasoning", { enum: ["low", "medium", "high", "max"] }),
   previewMode: text("preview_mode", { enum: ["external", "runner"] }).notNull().default("external"),
+  // Bumped whenever this Board's membership narrows. A Preview cookie carries the epoch it was
+  // issued under, so losing membership invalidates every outstanding cookie for the Board at once.
+  previewEpoch: integer("preview_epoch").notNull().default(1),
   agentImage: text("agent_image"),
   maxConcurrentSessions: integer("max_concurrent_sessions").notNull().default(3),
   promptAppend: text("prompt_append").notNull().default(""),
@@ -195,6 +198,40 @@ export const notifications = sqliteTable(
   },
   (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
 );
+
+// One runner-hosted Preview per Card: the branch's own Dockerfile, built and run by the runner and
+// reached at its own hostname through the preview router.
+export const previews = sqliteTable(
+  "previews",
+  {
+    id: text("id").primaryKey(),
+    boardId: text("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+    cardId: text("card_id").notNull().references(() => cards.id, { onDelete: "cascade" }).unique(),
+    host: text("host").notNull().unique(),
+    status: text("status", { enum: ["building", "running", "failed"] }).notNull().default("building"),
+    branch: text("branch").notNull(),
+    port: integer("port").notNull().default(3000),
+    containerId: text("container_id"),
+    // Where the router proxies to, on the preview network: `http://cardboard-preview-<id>:<port>`.
+    target: text("target"),
+    error: text("error"),
+    // Drives the seven-idle-day removal: touched whenever someone is let through to the Preview.
+    lastAccessAt: text("last_access_at").notNull().$defaultFn(now),
+    createdAt: text("created_at").notNull().$defaultFn(now),
+    updatedAt: text("updated_at").notNull().$defaultFn(now),
+  },
+  (t) => [index("previews_board_idx").on(t.boardId)],
+);
+
+// Single-use authorization codes that carry a signed-in Member from the app to a Preview host.
+// Short-lived, bound to one host and one User, and deleted as they are spent.
+export const previewCodes = sqliteTable("preview_codes", {
+  code: text("code").primaryKey(),
+  previewId: text("preview_id").notNull().references(() => previews.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull().$defaultFn(now),
+});
 
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),

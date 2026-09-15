@@ -25,11 +25,22 @@ function githubApp(prefix: string) {
 }
 
 const dataDir = path.resolve(str("CARDBOARD_DATA_DIR", "./data"));
+const publicUrl = str("CARDBOARD_PUBLIC_URL", "http://localhost:5173").replace(/\/$/, "");
+
+// Preview hostnames hang off the app's own parent domain: `cardboard.xode.cc` gives `xode.cc`.
+function defaultPreviewDomain(): string {
+  try {
+    const labels = new URL(publicUrl).hostname.split(".");
+    return labels.length > 2 ? labels.slice(1).join(".") : labels.join(".");
+  } catch {
+    return "";
+  }
+}
 
 export const env = {
   port: Number(str("PORT", "3070")),
   dataDir,
-  publicUrl: str("CARDBOARD_PUBLIC_URL", "http://localhost:5173").replace(/\/$/, ""),
+  publicUrl,
   authMode: (str("CARDBOARD_AUTH", "dev") === "clerk" ? "clerk" : "dev") as "dev" | "clerk",
   clerkSecretKey: str("CLERK_SECRET_KEY"),
   clerkPublishableKey: str("CLERK_PUBLISHABLE_KEY") || str("VITE_CLERK_PUBLISHABLE_KEY"),
@@ -39,6 +50,15 @@ export const env = {
   runnerToken: str("CARDBOARD_RUNNER_TOKEN"),
   // Only for reading which Providers are out of usage. Session traffic never passes through the app.
   egressUrl: str("CARDBOARD_EGRESS_URL").replace(/\/$/, ""),
+  // Signs Preview cookies. The preview router verifies with the same secret; nothing else holds it.
+  previewSecret: str("CARDBOARD_PREVIEW_SECRET"),
+  previewDomain: str("CARDBOARD_PREVIEW_DOMAIN", defaultPreviewDomain()),
+  // `{card}` is the Card's short id, `{domain}` the line above. Universal SSL does not cover a
+  // second-level wildcard, so a zone without an advanced certificate wants `{card}-preview.{domain}`.
+  previewHostPattern: str("CARDBOARD_PREVIEW_HOST_PATTERN", "{card}.preview.{domain}"),
+  previewScheme: str("CARDBOARD_PREVIEW_SCHEME", "https"),
+  previewCookieMinutes: Number(str("CARDBOARD_PREVIEW_COOKIE_MINUTES", "240")),
+  previewIdleDays: Number(str("CARDBOARD_PREVIEW_IDLE_DAYS", "7")),
   githubSessionsApp: githubApp("GITHUB_SESSIONS_APP"),
   githubMergeApp: githubApp("GITHUB_MERGE_APP"),
   triggerCoalesceMs: Number(str("CARDBOARD_TRIGGER_COALESCE_MS", "60000")),

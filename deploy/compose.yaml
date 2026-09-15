@@ -2,8 +2,10 @@
 # `docker compose up -d`. Watchtower updates app, runner, egress, and preview-router on each push
 # to main; session and preview containers carry the opt-out label and are managed by the runner.
 #
-# Networks: `control` carries app <-> runner <-> egress traffic. `workload` is where session and
-# preview containers live; they can reach app (MCP) and egress but never the runner.
+# Networks: `control` carries app <-> runner <-> egress traffic. `workload` is where session
+# containers live; they can reach app (MCP) and egress but never the runner. `preview` holds only
+# preview containers and the router that fronts them: branch-controlled code reaches the internet
+# and nothing else on this stack.
 
 name: cardboard
 
@@ -33,6 +35,13 @@ services:
       GITHUB_MERGE_APP_ID: ${GITHUB_MERGE_APP_ID}
       GITHUB_MERGE_APP_SLUG: ${GITHUB_MERGE_APP_SLUG}
       GITHUB_MERGE_APP_PRIVATE_KEY_B64: ${GITHUB_MERGE_APP_PRIVATE_KEY_B64}
+      # Signs Preview cookies; the preview-router below verifies with the same secret.
+      CARDBOARD_PREVIEW_SECRET: ${CARDBOARD_PREVIEW_SECRET}
+      # Preview hostnames default to `<card>.preview.xode.cc`. That is a second-level subdomain,
+      # which Cloudflare Universal SSL does not cover: without an advanced certificate on the zone,
+      # set CARDBOARD_PREVIEW_HOST_PATTERN in deploy/.env to `{card}-preview.{domain}`, which is a
+      # first-level name Universal SSL does cover, and add the matching tunnel hostname.
+      CARDBOARD_PREVIEW_HOST_PATTERN: ${CARDBOARD_PREVIEW_HOST_PATTERN}
     volumes:
       - ../../data/cardboard/app:/data
     networks: [control, workload]
@@ -47,6 +56,7 @@ services:
       CARDBOARD_MCP_URL: http://app:3070/mcp
       CARDBOARD_EGRESS_URL: http://egress:8787
       CARDBOARD_WORKLOAD_NETWORK: cardboard_workload
+      CARDBOARD_PREVIEW_NETWORK: cardboard_preview
       CARDBOARD_LOG_DIR: /data/logs
       # Set once the egress proxy below holds the Codex sign-in file; then Session containers get
       # no Codex credential of their own. Leave empty to fall back to mounting the file into them.
@@ -85,9 +95,11 @@ services:
       CARDBOARD_PUBLIC_URL: https://cardboard.xode.cc
       CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
       CARDBOARD_PREVIEW_SECRET: ${CARDBOARD_PREVIEW_SECRET}
-    networks: [control, workload]
+    networks: [control, preview]
 
 networks:
   control:
   workload:
     name: cardboard_workload
+  preview:
+    name: cardboard_preview

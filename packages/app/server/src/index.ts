@@ -13,6 +13,7 @@ import { internal } from "./routes/internal.js";
 import { recoverOnBoot } from "./services/orchestrator.js";
 import { startSweepScheduler } from "./services/sweep.js";
 import { startBackupScheduler } from "./services/backup.js";
+import { startPreviewReaper } from "./services/previews.js";
 import { ensureSeed } from "./seed.js";
 
 const app = new Hono();
@@ -50,6 +51,7 @@ await ensureSeed();
 await recoverOnBoot();
 startSweepScheduler();
 startBackupScheduler();
+startPreviewReaper();
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`cardboard app listening on http://localhost:${info.port} (auth=${env.authMode})`);

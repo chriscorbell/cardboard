@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -39,6 +40,7 @@ import { ApprovalError, approveCard, listApprovals } from "../services/approvals
 import { listNotifications, markNotificationsRead } from "../services/notifications.js";
 import { backupsView, takeSnapshot } from "../services/backup.js";
 import { installationStatus, parseRepoUrl } from "../services/github.js";
+import { bumpEveryPreviewEpoch, bumpPreviewEpoch, issuePreviewCode, PreviewError } from "../services/previews.js";
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
@@ -241,6 +243,25 @@ api.get("/attachments/:id", async (c) => {
   });
 });
 
+// ---- previews ----
+
+// A Member lands here from the preview router, which sent them away because they had no Preview
+// cookie. The page is behind the app's own sign-in, so by the time this runs the caller is known;
+// membership is checked against the Preview's Board and the answer is a single-use code that only
+// works on that one host.
+api.post("/previews/auth-code", zValidator("json", z.object({ host: z.string().min(1), next: z.string().default("/") })), async (c) => {
+  const { host, next } = c.req.valid("json");
+  try {
+    const { code, redirectBase } = await issuePreviewCode(c.get("user"), host);
+    // `next` is a path on the preview host, never an absolute URL, so this cannot be an open redirect.
+    const path = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    return c.json({ redirect: `${redirectBase}/__cardboard/auth?code=${encodeURIComponent(code)}&next=${encodeURIComponent(path)}` });
+  } catch (err) {
+    if (err instanceof PreviewError) return c.json({ error: err.message }, 403);
+    throw err;
+  }
+});
+
 // ---- admin ----
 const admin = new Hono<{ Variables: AuthVariables }>();
 admin.use("*", requireAdmin);
@@ -254,6 +275,9 @@ admin.post("/users", zValidator("json", inviteUserSchema), async (c) => {
 admin.post("/users/:id/revoke", async (c) => {
   if (c.req.param("id") === c.get("user").id) return c.json({ error: "cannot revoke yourself" }, 400);
   await setUserStatus(c.req.param("id"), "revoked");
+  // The revoked user may hold Preview cookies on any Board, and a cookie is only checked against
+  // its Board's epoch, so every Board's epoch moves.
+  await bumpEveryPreviewEpoch();
   return c.json({ ok: true });
 });
 admin.post("/users/:id/reinstate", async (c) => {
@@ -292,6 +316,8 @@ admin.get("/boards/:id/github", async (c) => {
 });
 admin.put("/boards/:id/members", zValidator("json", boardMembersSchema), async (c) => {
   await setMembers(c.req.param("id"), c.req.valid("json").userIds);
+  // Membership may have narrowed; outstanding Preview cookies for this Board stop working now.
+  await bumpPreviewEpoch(c.req.param("id"));
   return c.json({ ok: true });
 });
 

@@ -3,8 +3,10 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { env } from "../env.js";
 import { endSession } from "../services/orchestrator.js";
+import { applyPreviewState, exchangePreviewCode, PreviewError, previewRoutes } from "../services/previews.js";
 
-// Called by the runner when a container exits. Authenticated with the shared runner token.
+// Called by the runner when a container exits, and by the preview router for its routing table and
+// its code exchange. Both reach the app over the control network with the shared runner token.
 export const internal = new Hono();
 
 internal.use("*", async (c, next) => {
@@ -13,8 +15,38 @@ internal.use("*", async (c, next) => {
   await next();
 });
 
-// Runner-hosted previews are not built yet; the router polls this and gets an empty table.
-internal.get("/previews", (c) => c.json([]));
+// The preview router polls this: one entry per registered Preview, with the board epoch that a
+// cookie must still match.
+internal.get("/previews", async (c) => c.json(await previewRoutes()));
+
+internal.post(
+  "/previews/:id/state",
+  zValidator(
+    "json",
+    z.object({
+      status: z.enum(["running", "failed"]),
+      containerId: z.string().nullish(),
+      target: z.string().nullish(),
+      error: z.string().nullish(),
+    }),
+  ),
+  async (c) => {
+    await applyPreviewState(c.req.param("id"), c.req.valid("json"));
+    return c.json({ ok: true });
+  },
+);
+
+// Step two of the Preview sign-in redirect. The router never sees a Cardboard credential; it hands
+// over the single-use code and gets back one cookie for one host.
+internal.post("/previews/exchange", zValidator("json", z.object({ code: z.string().min(1), host: z.string().min(1) })), async (c) => {
+  const { code, host } = c.req.valid("json");
+  try {
+    return c.json(await exchangePreviewCode(code, host));
+  } catch (err) {
+    if (err instanceof PreviewError) return c.json({ error: err.message }, 403);
+    throw err;
+  }
+});
 
 internal.post("/sessions/:id/exit", zValidator("json", z.object({ exitCode: z.number().int(), reason: z.string().optional() })), async (c) => {
   const { exitCode, reason } = c.req.valid("json");

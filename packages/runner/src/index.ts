@@ -6,6 +6,7 @@ import path from "node:path";
 import { z } from "zod";
 import { codexWiring } from "./codex.js";
 import { readLogSlice } from "./logs.js";
+import { buildAndRunPreview, PreviewError, removePreview, type PreviewRequest } from "./previews.js";
 
 // The runner is the only process with the Docker socket. It knows how to do exactly two things:
 // run a Session container from an approved image with fixed limits, and stop or remove one.
@@ -19,11 +20,17 @@ const env = {
   egressUrl: (process.env.CARDBOARD_EGRESS_URL ?? "http://egress:8787").replace(/\/$/, ""),
   defaultImage: process.env.CARDBOARD_AGENT_IMAGE ?? "ghcr.io/chriscorbell/cardboard-agent:latest",
   workloadNetwork: process.env.CARDBOARD_WORKLOAD_NETWORK ?? "cardboard_workload",
+  // Previews are branch-controlled code, so they get their own network: the router can reach them
+  // and they can reach the internet, but not the app, the egress proxy, or the runner.
+  previewNetwork: process.env.CARDBOARD_PREVIEW_NETWORK ?? "cardboard_preview",
   logDir: process.env.CARDBOARD_LOG_DIR ?? "/data/logs",
   logRetentionDays: Number(process.env.CARDBOARD_LOG_RETENTION_DAYS ?? "14"),
   memoryBytes: Number(process.env.CARDBOARD_SESSION_MEMORY_BYTES ?? String(4 * 1024 * 1024 * 1024)),
   nanoCpus: Number(process.env.CARDBOARD_SESSION_NANO_CPUS ?? String(2e9)),
   pidsLimit: Number(process.env.CARDBOARD_SESSION_PIDS_LIMIT ?? "1024"),
+  previewMemoryBytes: Number(process.env.CARDBOARD_PREVIEW_MEMORY_BYTES ?? String(1024 * 1024 * 1024)),
+  previewNanoCpus: Number(process.env.CARDBOARD_PREVIEW_NANO_CPUS ?? String(1e9)),
+  previewPidsLimit: Number(process.env.CARDBOARD_PREVIEW_PIDS_LIMIT ?? "512"),
   // A path on the Docker host: the runner never opens it, it only names it in a bind.
   codexAuthFile: process.env.CODEX_AUTH_FILE ?? "",
   codexViaEgress: /^(1|true|yes)$/i.test(process.env.CARDBOARD_CODEX_VIA_EGRESS ?? ""),
@@ -219,8 +226,78 @@ app.get("/sessions", async (c) => {
   return c.json(list.map((x) => ({ containerId: x.Id, sessionId: x.Labels["cardboard.session"], state: x.State, status: x.Status })));
 });
 
-// Previews are not built yet. The endpoint exists so the app can discover that.
-app.post("/previews", (c) => c.json({ error: "runner previews are not implemented yet" }, 501));
+const previewSchema = z.object({
+  previewId: z.string(),
+  boardSlug: z.string(),
+  cardId: z.string(),
+  host: z.string(),
+  repoUrl: z.string().url(),
+  branch: z.string(),
+  githubToken: z.string().nullable().default(null),
+  dockerfile: z.string().default("Dockerfile"),
+  port: z.number().int().positive().default(3000),
+  env: z.record(z.string()).default({}),
+});
+
+const previewLimits = {
+  network: env.previewNetwork,
+  memoryBytes: env.previewMemoryBytes,
+  nanoCpus: env.previewNanoCpus,
+  pidsLimit: env.previewPidsLimit,
+};
+
+async function reportPreview(previewId: string, body: { status: "running" | "failed"; containerId?: string; target?: string; error?: string }) {
+  try {
+    await fetch(`${env.appUrl}/api/internal/previews/${previewId}/state`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    console.error(`[runner] could not report preview ${previewId}`, err);
+  }
+}
+
+// A build takes minutes, so the request only accepts the work. The app already knows the hostname,
+// and the router serves a holding page until the runner reports the container is up.
+app.post("/previews", async (c) => {
+  const parsed = previewSchema.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const req: PreviewRequest = parsed.data;
+  const logPath = path.join(env.logDir, `preview-${req.previewId}.log`);
+  fs.writeFileSync(logPath, `[preview] accepted ${req.host} at ${new Date().toISOString()}\n`);
+  const onLog = (line: string) => fs.appendFileSync(logPath, `${line}\n`);
+
+  void buildAndRunPreview(docker, req, previewLimits, onLog)
+    .then(async ({ containerId, target }) => {
+      await reportPreview(req.previewId, { status: "running", containerId, target });
+    })
+    .catch(async (err: Error) => {
+      const message = err instanceof PreviewError ? err.message : `preview failed: ${err.message}`;
+      onLog(message);
+      console.error(`[runner] preview ${req.previewId} failed`, message);
+      await reportPreview(req.previewId, { status: "failed", error: message });
+    });
+
+  return c.json({ accepted: true }, 202);
+});
+
+app.delete("/previews/:id", async (c) => {
+  const id = c.req.param("id");
+  const removed = await removePreview(docker, id);
+  fs.rmSync(path.join(env.logDir, `preview-${id}.log`), { force: true });
+  return c.json({ ok: true, removed });
+});
+
+app.get("/previews", async (c) => {
+  const list = await docker.listContainers({ all: true, filters: { label: ["cardboard.preview"] } });
+  return c.json(list.map((x) => ({ containerId: x.Id, previewId: x.Labels["cardboard.preview"], host: x.Labels["cardboard.preview.host"], state: x.State, status: x.Status })));
+});
+
+app.get("/previews/:id/log", (c) => {
+  const offset = Number(c.req.query("offset") ?? "0");
+  return c.json(readLogSlice(env.logDir, `preview-${c.req.param("id")}`, Number.isFinite(offset) ? offset : 0));
+});
 
 function pruneLogs() {
   const cutoff = Date.now() - env.logRetentionDays * 86_400_000;
