@@ -102,7 +102,7 @@ Copy `packages/app/.env.example` to `packages/app/.env`. The variables that matt
 
 ## Deploying
 
-kardboard ships as five Docker images built by the included GitHub Actions workflow. [`deploy/compose.yaml`](deploy/compose.yaml) runs the four services on any Docker host, with separate networks so Session containers can reach the app and the credential proxy but never the runner. Put the public hostname in front of the app's port with whatever reverse proxy or tunnel you already use.
+kardboard ships as five Docker images built by the included GitHub Actions workflow. [`deploy/compose.yaml`](deploy/compose.yaml) runs the four services on any Docker host, with separate networks so Session containers can reach the app and the credential proxy but never the runner or each other: the runner gives every Session a bridge of its own. Keeping Sessions and previews off your LAN as well is a host firewall rule the compose file cannot carry — run [`deploy/network-isolation.sh`](deploy/network-isolation.sh), described in [the network isolation runbook](docs/runbooks/network-isolation.md). Put the public hostname in front of the app's port with whatever reverse proxy or tunnel you already use.
 
 External services you need to set up once:
 

@@ -6,6 +6,7 @@ import path from "node:path";
 import { z } from "zod";
 import { codexWiring } from "./codex.js";
 import { readLogSlice } from "./logs.js";
+import { createSessionNetwork, pruneSessionNetworks, removeSessionNetwork } from "./networks.js";
 import { buildAndRunPreview, PreviewError, removePreview, type PreviewRequest } from "./previews.js";
 
 // The runner is the only process with the Docker socket. It knows how to do exactly two things:
@@ -20,6 +21,10 @@ const env = {
   egressUrl: (process.env.CARDBOARD_EGRESS_URL ?? "http://egress:8787").replace(/\/$/, ""),
   defaultImage: process.env.CARDBOARD_AGENT_IMAGE ?? "ghcr.io/chriscorbell/cardboard-agent:latest",
   workloadNetwork: process.env.CARDBOARD_WORKLOAD_NETWORK ?? "cardboard_workload",
+  // Each Session gets a network of its own, holding only that Session and the containers on
+  // `workload` it is meant to reach, so two Sessions cannot see each other. Set this to `shared`
+  // to put Sessions back on `workload` together if the per-session wiring ever has to be backed out.
+  perSessionNetwork: (process.env.CARDBOARD_SESSION_NETWORK ?? "per-session") !== "shared",
   // Previews are branch-controlled code, so they get their own network: the router can reach them
   // and they can reach the internet, but not the app, the egress proxy, or the runner.
   previewNetwork: process.env.CARDBOARD_PREVIEW_NETWORK ?? "cardboard_preview",
@@ -126,6 +131,7 @@ function watchContainer(sessionId: string, container: Docker.Container) {
     .then(async (res) => {
       await reportExit(sessionId, res.StatusCode);
       await container.remove({ force: true }).catch(() => {});
+      await removeSessionNetwork(docker, sessionId).catch(() => {});
     })
     .catch((err) => console.error(`[runner] wait failed for ${sessionId}`, err));
 }
@@ -172,36 +178,56 @@ app.post("/sessions", async (c) => {
   ];
   const binds = [...codex.binds];
 
-  const container = await docker.createContainer({
-    Image: image,
-    name,
-    Env: envList,
-    Labels: {
-      "com.centurylinklabs.watchtower.enable": "false",
-      "cardboard.session": req.sessionId,
-      "cardboard.board": req.boardSlug,
-    },
-    // The prompt is delivered on stdin so it never appears in `docker inspect` or process lists.
-    OpenStdin: true,
-    StdinOnce: true,
-    HostConfig: {
-      Memory: env.memoryBytes,
-      NanoCpus: env.nanoCpus,
-      PidsLimit: env.pidsLimit,
-      Binds: binds,
-      NetworkMode: env.workloadNetwork,
-      SecurityOpt: ["no-new-privileges:true"],
-      CapDrop: ["ALL"],
-      ReadonlyRootfs: false,
-    },
-  });
-  const stdin = await container.attach({ stream: true, stdin: true, stdout: false, stderr: false, hijack: true });
-  await container.start();
-  stdin.write(req.prompt);
-  stdin.end();
-  watchContainer(req.sessionId, container);
-  console.log(`[runner] started ${name} (${image})`);
-  return c.json({ containerId: container.id });
+  // Refuse rather than fall back to the shared network: a Session that quietly lands next to its
+  // neighbours is the thing this is here to prevent, and the Card can explain a refusal.
+  let network = env.workloadNetwork;
+  if (env.perSessionNetwork) {
+    try {
+      network = await createSessionNetwork(docker, req.sessionId, req.boardSlug, env.workloadNetwork);
+    } catch (err) {
+      await removeSessionNetwork(docker, req.sessionId).catch(() => {});
+      const message = (err as Error).message;
+      console.error(`[runner] could not isolate session ${req.sessionId}: ${message}`);
+      return c.json({ error: `could not create the session network: ${message}` }, 500);
+    }
+  }
+
+  try {
+    const container = await docker.createContainer({
+      Image: image,
+      name,
+      Env: envList,
+      Labels: {
+        "com.centurylinklabs.watchtower.enable": "false",
+        "cardboard.session": req.sessionId,
+        "cardboard.board": req.boardSlug,
+      },
+      // The prompt is delivered on stdin so it never appears in `docker inspect` or process lists.
+      OpenStdin: true,
+      StdinOnce: true,
+      HostConfig: {
+        Memory: env.memoryBytes,
+        NanoCpus: env.nanoCpus,
+        PidsLimit: env.pidsLimit,
+        Binds: binds,
+        NetworkMode: network,
+        SecurityOpt: ["no-new-privileges:true"],
+        CapDrop: ["ALL"],
+        ReadonlyRootfs: false,
+      },
+    });
+    const stdin = await container.attach({ stream: true, stdin: true, stdout: false, stderr: false, hijack: true });
+    await container.start();
+    stdin.write(req.prompt);
+    stdin.end();
+    watchContainer(req.sessionId, container);
+    console.log(`[runner] started ${name} (${image}) on ${network}`);
+    return c.json({ containerId: container.id });
+  } catch (err) {
+    // The network exists only for this container, so it goes when the container never arrives.
+    if (env.perSessionNetwork) await removeSessionNetwork(docker, req.sessionId).catch(() => {});
+    throw err;
+  }
 });
 
 app.delete("/sessions/:id", async (c) => {
@@ -209,8 +235,11 @@ app.delete("/sessions/:id", async (c) => {
   const container = docker.getContainer(id);
   const info = await container.inspect().catch(() => null);
   if (!info) return c.json({ ok: true, missing: true }, 404);
+  const sessionId = info.Config?.Labels?.["cardboard.session"];
   await container.stop({ t: 10 }).catch(() => {});
   await container.remove({ force: true }).catch(() => {});
+  // `watchContainer` also does this, but a runner that restarted mid-Session is no longer watching.
+  if (sessionId) await removeSessionNetwork(docker, sessionId).catch(() => {});
   return c.json({ ok: true });
 });
 
@@ -308,6 +337,9 @@ function pruneLogs() {
 }
 pruneLogs();
 setInterval(pruneLogs, 6 * 3_600_000);
-void pruneExitedSessions().catch((err) => console.error("[runner] prune failed", err));
+void pruneExitedSessions()
+  .then(() => pruneSessionNetworks(docker))
+  .then((removed) => removed.length && console.log(`[runner] removed ${removed.length} orphaned session network(s)`))
+  .catch((err) => console.error("[runner] prune failed", err));
 
 serve({ fetch: app.fetch, port: env.port }, (info) => console.log(`cardboard runner listening on :${info.port}`));

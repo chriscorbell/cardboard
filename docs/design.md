@@ -104,12 +104,14 @@ kardboard runs on minicore as one compose stack named `cardboard` in `chriscorbe
 
 | Service | Role | Network |
 | --- | --- | --- |
-| `app` | Web, REST API, MCP server, orchestrator, SQLite | Host port 3070; `control`, `workload` |
+| `app` | Web, REST API, MCP server, orchestrator, SQLite | Host port 3070; `control`, `workload`, and each live Session's network |
 | `runner` | Owns the Docker socket; creates, logs, stops, and removes Session and Preview containers | `control` only |
-| `egress` | Credential-injecting proxy for provider traffic | `control`, `workload` |
+| `egress` | Credential-injecting proxy for provider traffic | `control`, `workload`, and each live Session's network |
 | `preview-router` | Routes preview hostnames and enforces the signed cookie | Host port behind the tunnel; `control`, `preview` |
 
-Three user-defined networks separate the three kinds of traffic. `control` carries app, runner, and egress. Session containers join `workload`, where they reach the MCP server and the egress proxy but never the runner. Preview containers join `preview` alone, reached only by the preview router: branch-controlled code gets the internet through NAT and nothing else on this stack. Preview containers also run with no bind mounts, no Docker socket, dropped capabilities, `no-new-privileges`, and memory, CPU, and PID limits.
+Three user-defined networks separate the three kinds of traffic. `control` carries app, runner, and egress. `workload` names the services a Session may reach — the MCP server and the egress proxy, never the runner — but no Session joins it: the runner creates one `cardboard-session-<id>` network per Session and connects those same services to it under the aliases they already answer to, so two Sessions on the same Board cannot reach each other. Preview containers join `preview` alone, reached only by the preview router: branch-controlled code gets the internet through NAT and nothing else on this stack. Preview containers also run with no bind mounts, no Docker socket, dropped capabilities, `no-new-privileges`, and memory, CPU, and PID limits.
+
+Every Session and Preview bridge is named with a `cbn` prefix so one host firewall rule keeps both kinds of container off 10.0.0.0/24 and every other stack's bridge, which Docker's NAT otherwise reaches. [ADR 0003](adr/0003-unrestricted-agent-egress-in-v1.md) accepts unrestricted public egress, not access to the rest of minicore. The rule is not part of the stack: an Admin applies `deploy/network-isolation.sh` on the host, and it is lost on a reboot or a Docker restart until re-applied. See [network isolation](runbooks/network-isolation.md).
 
 The app keeps its state in SQLite in WAL mode, see [ADR 0004](adr/0004-sqlite-in-a-single-server-process.md). Once a day it writes a snapshot with `VACUUM INTO` to `backups/` on the same bind mount, verifies it, and keeps the newest fourteen; restoring one is an operator procedure with the app stopped, described in [the backups runbook](runbooks/backups.md). Attachments are stored on the data bind mount with content-addressed names and served through the app with membership checks; there are no public file URLs. Only the runner mounts the Docker socket, see [ADR 0005](adr/0005-runner-service-owns-the-docker-socket.md).
 
@@ -119,7 +121,7 @@ This repository is a pnpm monorepo in TypeScript with packages for `app` (Vite +
 
 ## Manual steps the Admin performs
 
-These need host or vendor account access: configuring the Cloudflare apex and wildcard tunnel routes, setting `CARDBOARD_PREVIEW_SECRET` in `deploy/.env`, verifying `kardboard.cc` in Resend, creating and installing the two GitHub Apps ([deploy/github-apps.md](../deploy/github-apps.md)), configuring Clerk and Google sign-in, and generating the Claude Code long-lived token with `claude setup-token`. [Domain configuration](runbooks/domains.md) records the current routing, authentication, and email setup. Preparing a repository, including its branch ruleset, is scripted for an agent in the `cardboard-onboard` skill in [chriscorbell/skills](https://github.com/chriscorbell/skills/tree/main/cardboard-onboard).
+These need host or vendor account access: applying `deploy/network-isolation.sh` to the host firewall, configuring the Cloudflare apex and wildcard tunnel routes, setting `CARDBOARD_PREVIEW_SECRET` in `deploy/.env`, verifying `kardboard.cc` in Resend, creating and installing the two GitHub Apps ([deploy/github-apps.md](../deploy/github-apps.md)), configuring Clerk and Google sign-in, and generating the Claude Code long-lived token with `claude setup-token`. [Domain configuration](runbooks/domains.md) records the current routing, authentication, and email setup. Preparing a repository, including its branch ruleset, is scripted for an agent in the `cardboard-onboard` skill in [chriscorbell/skills](https://github.com/chriscorbell/skills/tree/main/cardboard-onboard).
 
 ## Status
 

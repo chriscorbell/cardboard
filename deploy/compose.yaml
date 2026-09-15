@@ -2,10 +2,16 @@
 # `docker compose up -d`. Watchtower updates app, runner, egress, and preview-router on each push
 # to main; session and preview containers carry the opt-out label and are managed by the runner.
 #
-# Networks: `control` carries app <-> runner <-> egress traffic. `workload` is where session
-# containers live; they can reach app (MCP) and egress but never the runner. `preview` holds only
-# preview containers and the router that fronts them: branch-controlled code reaches the internet
-# and nothing else on this stack.
+# Networks: `control` carries app <-> runner <-> egress traffic. `workload` is the list of services
+# a session container may reach — app (MCP) and egress, never the runner — but no session container
+# joins it: the runner gives each session a network of its own and connects those same services to
+# it, so two sessions cannot see each other. `preview` holds only preview containers and the router
+# that fronts them: branch-controlled code reaches the internet and nothing else on this stack.
+#
+# Session and preview bridges are named `cbn*` so one host firewall rule can keep both kinds of
+# container off the LAN; run `deploy/network-isolation.sh apply` on minicore, see
+# `docs/runbooks/network-isolation.md`. Changing the preview bridge name needs the network
+# recreated: `docker compose down && docker compose up -d`.
 
 name: cardboard
 
@@ -56,6 +62,9 @@ services:
       CARDBOARD_EGRESS_URL: http://egress:8787
       CARDBOARD_WORKLOAD_NETWORK: cardboard_workload
       CARDBOARD_PREVIEW_NETWORK: cardboard_preview
+      # `per-session` gives every session its own bridge; `shared` puts them all back on
+      # cardboard_workload together, which is only for backing the isolation out in a hurry.
+      CARDBOARD_SESSION_NETWORK: ${CARDBOARD_SESSION_NETWORK:-per-session}
       CARDBOARD_LOG_DIR: /data/logs
       # Set once the egress proxy below holds the Codex sign-in file; then Session containers get
       # no Codex credential of their own. Leave empty to fall back to mounting the file into them.
@@ -102,3 +111,5 @@ networks:
     name: cardboard_workload
   preview:
     name: cardboard_preview
+    driver_opts:
+      com.docker.network.bridge.name: cbnprev
