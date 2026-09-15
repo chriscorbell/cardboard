@@ -23,3 +23,4 @@ Facts a Session cannot see from the tree:
 - Merging to `main` deploys to production within about a minute through Watchtower. Keep pull requests small and self-contained.
 - `deploy/.env`, `packages/app/.env`, and anything under `docs/memory/history/` are never edited by a Session.
 - Vocabulary in `CONTEXT.md` is binding: Board, Card, Session, Trigger, Claim, Approval mean exactly what it says.
+- Memory in a Session is narrow. Add or update topic notes under `docs/memory/context/`, `docs/memory/lessons/`, and `docs/memory/work/`, and add a new note's bullet to that category's `README.md`. Leave `docs/memory/README.md` alone: its review record and canonical-documents list are maintained by interactive sessions, and the bounded review in the memory protocol's Finish step 4 is skipped in a Session. Several Sessions rewriting that one file in a day is how pull requests end up conflicting.
