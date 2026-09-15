@@ -1,0 +1,19 @@
+# The Codex CLI drops flags and config keys between releases, and the Session image tracked `latest`
+
+Read when: a Codex Session exits immediately or reaches no provider, when changing anything in the Codex branch of `images/agent/entrypoint.sh`, or before bumping `CODEX_VERSION` in the Session image.
+Status: verified
+Scope: `images/agent`, `packages/runner`, `packages/egress`
+Verified: 2026-09-15
+Source: [the entrypoint](../../../images/agent/entrypoint.sh), [ADR 0002](../../adr/0002-subscription-credentials-stay-in-the-egress-proxy.md); observed by running codex-cli 0.154.0 inside a Session on 2026-09-15
+Recheck when: `CODEX_VERSION` in `images/agent/Dockerfile` changes.
+
+The Codex Provider had never worked. The entrypoint ran `codex exec --full-auto`, a flag codex-cli removed by 0.154.0, so Codex exited on its argument parser before doing anything. Nothing caught it because the image installed `@openai/codex` unpinned, so the CLI drifted under a script that was never re-checked, and no test ran the Codex path.
+
+The corrections, each checked against codex-cli 0.154.0 in a Session:
+
+- `--full-auto` is gone. `codex exec --dangerously-bypass-approvals-and-sandbox` is the flag for a container that is already the sandbox — its own help says so. `--strict-config` makes Codex reject config it does not recognise, which converts the next drift of this kind from silence into a failed Session.
+- MCP over streamable HTTP is `url` plus `bearer_token_env_var`, which is what `codex mcp add --url --bearer-token-env-var` writes. `http_headers = { "Authorization" = ... }` also parses, so the old form was not rejected, but it wrote the Session token into `config.toml`.
+- Codex reads `$CODEX_HOME/auth.json` and **rewrites it** when it refreshes its access token. Binding the Admin's file straight onto that path read-only breaks the refresh; bind it elsewhere read-only and copy it in.
+- `chatgpt_base_url` does not move inference. Codex's default provider prefers a WebSocket to `wss://chatgpt.com/backend-api/codex/responses` that ignores it. Naming a `[model_providers.*]` with `base_url`, `wire_api = "responses"` and `requires_openai_auth = true` turns the WebSocket off and sends `POST {base_url}/responses` over plain HTTP. Codex then runs with **no `auth.json` in the container at all**, sending no `Authorization` for the proxy to fill in — which is what makes [[../../adr/0002-subscription-credentials-stay-in-the-egress-proxy]] reachable for Codex.
+
+The cheap check, before trusting any of this after a version bump: `codex doctor` reports `config.toml parse ok`, the MCP server count, and whether the active provider uses a WebSocket.
