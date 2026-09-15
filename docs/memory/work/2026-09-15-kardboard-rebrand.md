@@ -1,0 +1,23 @@
+# Rebrand and domain migration
+
+Status: active
+Branch: `kardboard/rebrand`, including the preview setup commits from PR 11.
+Source: Chris's 2026-09-14 request for lowercase `kardboard`, with the corrected canonical app URL `https://kardboard.cc` and previews at `{card}.kardboard.cc`.
+Close when: branding is deployed, the app and previews work on the new domain, and legacy app links redirect.
+
+## Verified state, 2026-09-15 UTC
+
+- GitHub repository renamed to [chriscorbell/kardboard](https://github.com/chriscorbell/kardboard), with the same repository ID and ruleset. Local origin updated. Public branding is implemented but not yet committed or deployed; production still runs main `71e0a7b`.
+- The full acceptance command passed after the runtime Clerk config fix. Local browser verification showed the lowercase wordmark and working dev authentication. QA server uses localhost:3170 and isolated `/tmp/kardboard-rebrand-qa` data.
+- Cloudflare routes the apex and `app` alias to port 3070, the proxied wildcard to port 3073, and unknown previews to 404. The seven transient setup records were deleted with Chris's approval. Five Clerk records now use the correct root-level names. No paid certificate add-on is required.
+- Clerk's existing production instance moved to the root domain. Users and Secret Key were preserved; the new Publishable Key is in local and remote deploy configuration. All five DNS records verified. Domain change regenerated the three mail CNAME targets. HTTPS frontend API works; dashboard certificate issuance needs a final status check.
+- Clerk allows the root and accounts portal origins. `/v1/client` returns 403 `subdomain_not_allowed` for a preview origin. Backend code also pins token `authorizedParties` to the root. Real Google sign-in at the new root succeeded; the selected existing account has no Board memberships, which were left unchanged.
+- Google OAuth client and consent branding updated with the new root, callback, and lowercase name. Old URLs remain registered during transition. Google says consent branding requires verification; no verification request was submitted.
+- Resend verified the new domain. The existing sending key was renamed and restricted to it without changing its value. Production sender is `Milo <milo@kardboard.cc>`. No test email was sent.
+- Stacks commit `ee0d81a` applied on minicore. App and preview router were recreated with the new public URL, key, sender, and `{card}.{domain}` pattern. Existing data, image names, packages, environment names, and network names remain stable.
+- Board `6w2vc9ztmx4yrh` is named `kardboard`; its slug remains `cardboard`. Card `mq729nev6f9jy5` and its live preview registry now use `https://mq729nev.kardboard.cc`. Anonymous preview access redirects to the new app. Board preview epoch incremented to revoke old cookies.
+- Pre-cutover database snapshot `cardboard-20260915T032551Z.db` verified. Private environment backups are under `~/.local/state/cardboard/` on mbp and minicore. Never copy their contents into documentation.
+
+## Next actions
+
+Update the Board repository URL and current docs, publish the combined PR, handle the repository's review requirement, then deploy the branding images and verify redirects and browser appearance. PR 11 remains open and should be superseded by the combined change. Inspect Clerk's final certificate status. Stop the local QA server after verification. Record the release revision and close this note when the live code matches the new configuration.

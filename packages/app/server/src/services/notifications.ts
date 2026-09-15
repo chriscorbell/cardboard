@@ -29,7 +29,7 @@ async function actorProfile(actor: Actor): Promise<{ name: string; avatarUrl: st
     if (user) return { name: user.name, avatarUrl: user.avatarUrl };
     return { name: "Someone", avatarUrl: null };
   }
-  return { name: "Cardboard", avatarUrl: null };
+  return { name: "kardboard", avatarUrl: null };
 }
 
 // One notification is one row plus one email, so the bell and the inbox never disagree.

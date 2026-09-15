@@ -1,4 +1,4 @@
-# Cardboard stack for minicore. Copy this directory to chriscorbell/stacks/cardboard and run
+# kardboard stack for minicore. Copy this directory to chriscorbell/stacks/cardboard and run
 # `docker compose up -d`. Watchtower updates app, runner, egress, and preview-router on each push
 # to main; session and preview containers carry the opt-out label and are managed by the runner.
 #
@@ -19,12 +19,13 @@ services:
     environment:
       TZ: America/New_York
       CARDBOARD_AUTH: clerk
-      CARDBOARD_PUBLIC_URL: https://cardboard.xode.cc
+      CARDBOARD_PUBLIC_URL: https://kardboard.cc
+      CARDBOARD_REDIRECT_HOSTS: cardboard.xode.cc,app.kardboard.cc
       CARDBOARD_ADMIN_EMAIL: ${CARDBOARD_ADMIN_EMAIL}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
       CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      CARDBOARD_EMAIL_FROM: "Milo <milo@cardboard.xode.cc>"
+      CARDBOARD_EMAIL_FROM: "Milo <milo@kardboard.cc>"
       CARDBOARD_RUNNER_URL: http://runner:3071
       CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
       # Only to read which Providers are out of usage, for fallback. No Session traffic comes here.
@@ -37,11 +38,8 @@ services:
       GITHUB_MERGE_APP_PRIVATE_KEY_B64: ${GITHUB_MERGE_APP_PRIVATE_KEY_B64}
       # Signs Preview cookies; the preview-router below verifies with the same secret.
       CARDBOARD_PREVIEW_SECRET: ${CARDBOARD_PREVIEW_SECRET}
-      # Preview hostnames default to `<card>.preview.xode.cc`. That is a second-level subdomain,
-      # which Cloudflare Universal SSL does not cover: without an advanced certificate on the zone,
-      # set CARDBOARD_PREVIEW_HOST_PATTERN in deploy/.env to `{card}-preview.{domain}`, which is a
-      # first-level name Universal SSL does cover. Route `*.xode.cc` to port 3073 after exact-host
-      # tunnel rules and add its proxied wildcard CNAME. `*-preview.xode.cc` is not a wildcard.
+      # Route `kardboard.cc` to port 3070 and `*.kardboard.cc` to port 3073.
+      # The first-level wildcard covers card previews with free Universal SSL.
       CARDBOARD_PREVIEW_HOST_PATTERN: ${CARDBOARD_PREVIEW_HOST_PATTERN}
     volumes:
       - ../../data/cardboard/app:/data
@@ -93,7 +91,7 @@ services:
       - "3073:3072"
     environment:
       CARDBOARD_APP_URL: http://app:3070
-      CARDBOARD_PUBLIC_URL: https://cardboard.xode.cc
+      CARDBOARD_PUBLIC_URL: https://kardboard.cc
       CARDBOARD_RUNNER_TOKEN: ${CARDBOARD_RUNNER_TOKEN}
       CARDBOARD_PREVIEW_SECRET: ${CARDBOARD_PREVIEW_SECRET}
     networks: [control, preview]

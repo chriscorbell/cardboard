@@ -44,7 +44,7 @@ export function verifyCookie(value: string | undefined, host: string, route: Rou
   }
 }
 
-// Everything Cardboard puts on the wire is removed before branch-controlled code sees the request:
+// Everything kardboard puts on the wire is removed before branch-controlled code sees the request:
 // the Preview cookie itself, any other cookie that reached this host, and any Authorization header.
 export type Headers = Record<string, string | string[] | undefined>;
 
@@ -69,7 +69,7 @@ export function holdingPage(route: Route, host: string): { status: number; body:
   if (route.status === "building") {
     return {
       status: 503,
-      body: page("Building this preview", `Cardboard is building <code>${escapeHtml(host)}</code> from its branch. This page refreshes every ten seconds.`, true),
+      body: page("Building this preview", `kardboard is building <code>${escapeHtml(host)}</code> from its branch. This page refreshes every ten seconds.`, true),
     };
   }
   return {

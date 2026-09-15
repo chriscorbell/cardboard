@@ -13,7 +13,7 @@ import { runner } from "./runner-client.js";
 // and whether its container is up. The runner builds and runs it; the preview router reads this
 // registry for its routing table and comes back here to turn a signed-in Member into a cookie.
 //
-// Nothing here ever puts a Cardboard credential on a Preview host. A Member arrives at the app,
+// Nothing here ever puts a kardboard credential on a Preview host. A Member arrives at the app,
 // which checks Board membership and hands out a single-use code; the router spends that code
 // server-to-server and sets a cookie good for that one host.
 
@@ -38,7 +38,7 @@ export async function startPreview(cardId: string): Promise<PreviewRow> {
   if (!card) throw new PreviewError("card not found");
   const board = await db.select().from(schema.boards).where(eq(schema.boards.id, card.boardId)).get();
   if (!board) throw new PreviewError("board not found");
-  if (board.previewMode !== "runner") throw new PreviewError(`this board is in ${board.previewMode} preview mode, so Cardboard does not host its previews`);
+  if (board.previewMode !== "runner") throw new PreviewError(`this board is in ${board.previewMode} preview mode, so kardboard does not host its previews`);
   if (!card.branch) throw new PreviewError("the card has no branch yet; push one first");
   const repo = parseRepoUrl(board.repoUrl);
   if (!repo) throw new PreviewError("the board has no GitHub repository URL");

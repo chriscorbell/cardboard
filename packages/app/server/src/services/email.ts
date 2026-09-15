@@ -23,7 +23,7 @@ export async function queueEmail(input: {
 }): Promise<void> {
   const html = `<!doctype html><html><body style="margin:0;background:#141311;font-family:ui-sans-serif,system-ui,sans-serif;color:#e7e2d9">
 <div style="max-width:560px;margin:0 auto;padding:40px 24px">
-  <p style="margin:0 0 24px;font-size:13px;letter-spacing:.04em;color:#9b9384">Cardboard</p>
+  <p style="margin:0 0 24px;font-size:13px;letter-spacing:.04em;color:#9b9384">kardboard</p>
   <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;line-height:1.3">${escapeHtml(input.heading)}</h1>
   <div style="white-space:pre-wrap;font-size:15px;line-height:1.55;color:#cfc8bd;border-left:2px solid #3a3731;padding-left:14px;margin:0 0 28px">${escapeHtml(input.body)}</div>
   <a href="${escapeHtml(input.linkUrl)}" style="display:inline-block;background:#d9a05b;color:#1b1710;text-decoration:none;font-weight:600;font-size:14px;padding:10px 16px;border-radius:8px">${escapeHtml(input.linkLabel)}</a>
@@ -42,17 +42,17 @@ export async function sendInvitation(user: User, invitedBy: User | null): Promis
   if (user.status !== "invited") return false;
   const agent = await getAgentProfile();
   const inviter = invitedBy && invitedBy.id !== user.id ? invitedBy.name : null;
-  const heading = inviter ? `${inviter} invited you to Cardboard` : "You have been invited to Cardboard";
+  const heading = inviter ? `${inviter} invited you to kardboard` : "You have been invited to kardboard";
   await queueEmail({
     toUserId: user.id,
     subject: heading,
     heading,
     body:
-      `Cardboard is a board you share with ${agent.name}, the coding agent: you write a card, ${agent.name} picks it up and opens a pull request, and the work merges when you approve it.\n\n` +
+      `kardboard is a board you share with ${agent.name}, the coding agent: you write a card, ${agent.name} picks it up and opens a pull request, and the work merges when you approve it.\n\n` +
       `Sign in with ${user.email} to accept. Any other address will be turned away.`,
     linkUrl: env.publicUrl,
-    linkLabel: "Sign in to Cardboard",
-    footer: "You are receiving this because this address was invited to Cardboard. If you were not expecting it, ignore this email.",
+    linkLabel: "Sign in to kardboard",
+    footer: "You are receiving this because this address was invited to kardboard. If you were not expecting it, ignore this email.",
   });
   return true;
 }
@@ -78,7 +78,7 @@ async function deliver(id: string): Promise<void> {
       to: [user.email],
       subject: row.subject,
       html: row.html,
-      reply_to: "no-reply@cardboard.xode.cc",
+      reply_to: "no-reply@kardboard.cc",
     }),
   });
   if (!res.ok) {

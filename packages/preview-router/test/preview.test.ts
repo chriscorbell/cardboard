@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { COOKIE_NAME, cookieHeader, forwardHeaders, holdingPage, readCookie, safeNext, signInRedirect, verifyCookie, type PreviewCookie, type Route } from "../src/preview.js";
 
 const secret = "test-secret";
-const host = "k6u39mjg.preview.xode.cc";
+const host = "k6u39mjg.kardboard.cc";
 const route: Route = { host, target: "http://cardboard-preview-pv1:3000", status: "running", error: null, epoch: 3 };
 
 function cookie(payload: Partial<PreviewCookie>, withSecret = secret): string {
@@ -20,7 +20,7 @@ describe("the preview cookie", () => {
   });
 
   it("does not open a different preview host", () => {
-    assert.equal(verifyCookie(cookie({}), "other.preview.xode.cc", { ...route, host: "other.preview.xode.cc" }, secret), false);
+    assert.equal(verifyCookie(cookie({}), "other.kardboard.cc", { ...route, host: "other.kardboard.cc" }, secret), false);
   });
 
   it("rejects a forged signature", () => {
@@ -53,7 +53,7 @@ describe("the preview cookie", () => {
 });
 
 describe("what reaches branch-controlled code", () => {
-  it("strips every Cardboard credential before proxying", () => {
+  it("strips every kardboard credential before proxying", () => {
     const headers = forwardHeaders(
       { host, cookie: `${COOKIE_NAME}=abc; __session=clerk`, authorization: "Bearer secret", "proxy-authorization": "Basic x", "user-agent": "curl" },
       "cardboard-preview-pv1:3000",
@@ -69,8 +69,8 @@ describe("what reaches branch-controlled code", () => {
 describe("the sign-in redirect", () => {
   it("sends an unauthenticated visitor to the app with the path they wanted", () => {
     assert.equal(
-      signInRedirect("https://cardboard.xode.cc", host, "/settings?tab=1"),
-      "https://cardboard.xode.cc/preview-auth?host=k6u39mjg.preview.xode.cc&next=%2Fsettings%3Ftab%3D1",
+      signInRedirect("https://kardboard.cc", host, "/settings?tab=1"),
+      "https://kardboard.cc/preview-auth?host=k6u39mjg.kardboard.cc&next=%2Fsettings%3Ftab%3D1",
     );
   });
 

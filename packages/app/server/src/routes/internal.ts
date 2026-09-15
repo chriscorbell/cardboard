@@ -36,7 +36,7 @@ internal.post(
   },
 );
 
-// Step two of the Preview sign-in redirect. The router never sees a Cardboard credential; it hands
+// Step two of the Preview sign-in redirect. The router never sees a kardboard credential; it hands
 // over the single-use code and gets back one cookie for one host.
 internal.post("/previews/exchange", zValidator("json", z.object({ code: z.string().min(1), host: z.string().min(1) })), async (c) => {
   const { code, host } = c.req.valid("json");

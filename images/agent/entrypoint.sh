@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Session entrypoint. The runner passes configuration in the environment and the workflow prompt
-# on stdin. The agent reaches Cardboard through MCP with the session token and the provider
+# on stdin. The agent reaches kardboard through MCP with the session token and the provider
 # through the egress proxy. Exit code 0 means the agent finished on its own terms.
 set -euo pipefail
 
@@ -74,7 +74,7 @@ JSON
 model_provider = "cardboard"
 
 [model_providers.cardboard]
-name = "Cardboard egress"
+name = "kardboard egress"
 base_url = "$CARDBOARD_CODEX_EGRESS_URL"
 wire_api = "responses"
 requires_openai_auth = true
@@ -94,7 +94,7 @@ TOML
     # configured should stop loudly; silently ignored config is how this path broke before.
     CODEX_ARGS=(--strict-config --skip-git-repo-check)
     [ -n "${CARDBOARD_MODEL:-}" ] && CODEX_ARGS+=(-m "$CARDBOARD_MODEL")
-    # Codex calls the top level "xhigh"; Cardboard's "max" maps to it.
+    # Codex calls the top level "xhigh"; kardboard's "max" maps to it.
     if [ -n "${CARDBOARD_REASONING:-}" ]; then
       EFFORT="$CARDBOARD_REASONING"; [ "$EFFORT" = "max" ] && EFFORT="xhigh"
       CODEX_ARGS+=(-c "model_reasoning_effort=\"$EFFORT\"")

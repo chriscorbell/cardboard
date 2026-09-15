@@ -117,7 +117,7 @@ export function BoardsTab() {
               <Input required value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: slugify(e.target.value) })} pattern="[a-z0-9][a-z0-9-]*" />
             </Field>
           </div>
-          <Field label="Repository URL" hint="GitHub only. Both Cardboard GitHub Apps must be installed on it.">
+          <Field label="Repository URL" hint="GitHub only. Both kardboard GitHub Apps must be installed on it.">
             <Input type="url" value={draft.repoUrl} onChange={(e) => setDraft({ ...draft, repoUrl: e.target.value })} placeholder="https://github.com/org/repo" />
           </Field>
           {editing !== "new" && editing ? <GitHubStatus boardId={editing.id} /> : null}

@@ -1,18 +1,18 @@
 import http from "node:http";
 import { COOKIE_NAME, cookieHeader, forwardHeaders, holdingPage, readCookie, safeNext, signInRedirect, verifyCookie, type Route } from "./preview.js";
 
-// Routes *.preview.<domain> to Preview containers by hostname and gates access with a signed,
+// Routes configured preview hostnames to containers and gates access with a signed,
 // host-only cookie.
 //
 // A visitor with no cookie is sent to the app, which knows who they are and whether they are a
 // Member of the Preview's Board. The app sends them back here with a single-use code; this router
 // spends the code over the internal network and sets the cookie. Branch-controlled code never sees
-// a Cardboard credential: every cookie and Authorization header is stripped before proxying.
+// a kardboard credential: every cookie and Authorization header is stripped before proxying.
 
 const port = Number(process.env.PORT ?? "3072");
 const secret = process.env.CARDBOARD_PREVIEW_SECRET ?? "";
 const appUrl = (process.env.CARDBOARD_APP_URL ?? "http://app:3070").replace(/\/$/, "");
-const publicAppUrl = (process.env.CARDBOARD_PUBLIC_URL ?? "https://cardboard.xode.cc").replace(/\/$/, "");
+const publicAppUrl = (process.env.CARDBOARD_PUBLIC_URL ?? "https://kardboard.cc").replace(/\/$/, "");
 const runnerToken = process.env.CARDBOARD_RUNNER_TOKEN ?? "";
 const secureCookies = !/^(0|false|no)$/i.test(process.env.CARDBOARD_PREVIEW_SECURE_COOKIES ?? "1");
 

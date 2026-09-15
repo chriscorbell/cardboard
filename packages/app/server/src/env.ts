@@ -27,7 +27,7 @@ function githubApp(prefix: string) {
 const dataDir = path.resolve(str("CARDBOARD_DATA_DIR", "./data"));
 const publicUrl = str("CARDBOARD_PUBLIC_URL", "http://localhost:5173").replace(/\/$/, "");
 
-// Preview hostnames hang off the app's own parent domain: `cardboard.xode.cc` gives `xode.cc`.
+// Preview hostnames hang off the app's own parent domain: `kardboard.cc` gives `kardboard.cc`.
 function defaultPreviewDomain(): string {
   try {
     const labels = new URL(publicUrl).hostname.split(".");
@@ -41,6 +41,7 @@ export const env = {
   port: Number(str("PORT", "3070")),
   dataDir,
   publicUrl,
+  redirectHosts: str("CARDBOARD_REDIRECT_HOSTS").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean),
   authMode: (str("CARDBOARD_AUTH", "dev") === "clerk" ? "clerk" : "dev") as "dev" | "clerk",
   clerkSecretKey: str("CLERK_SECRET_KEY"),
   clerkPublishableKey: str("CLERK_PUBLISHABLE_KEY") || str("VITE_CLERK_PUBLISHABLE_KEY"),
@@ -53,9 +54,9 @@ export const env = {
   // Signs Preview cookies. The preview router verifies with the same secret; nothing else holds it.
   previewSecret: str("CARDBOARD_PREVIEW_SECRET"),
   previewDomain: str("CARDBOARD_PREVIEW_DOMAIN", defaultPreviewDomain()),
-  // `{card}` is the Card's short id, `{domain}` the line above. Universal SSL does not cover a
-  // second-level wildcard, so a zone without an advanced certificate wants `{card}-preview.{domain}`.
-  previewHostPattern: str("CARDBOARD_PREVIEW_HOST_PATTERN", "{card}.preview.{domain}"),
+  // `{card}` is the Card's short id, `{domain}` the parent domain. A first-level hostname
+  // fits a standard wildcard certificate, alongside the app's explicit hostname.
+  previewHostPattern: str("CARDBOARD_PREVIEW_HOST_PATTERN", "{card}.{domain}"),
   previewScheme: str("CARDBOARD_PREVIEW_SCHEME", "https"),
   previewCookieMinutes: Number(str("CARDBOARD_PREVIEW_COOKIE_MINUTES", "240")),
   previewIdleDays: Number(str("CARDBOARD_PREVIEW_IDLE_DAYS", "7")),
