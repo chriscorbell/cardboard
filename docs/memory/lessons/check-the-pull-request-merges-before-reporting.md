@@ -4,8 +4,8 @@ Read when: finishing a card, resuming one whose pull request is already open, or
 
 Status: verified
 Scope: every Cardboard board
-Verified: 2026-09-14
-Source: pull request #2 on this repository, observed `"mergeable": "CONFLICTING"` before the merge commit `d67f5c8`; run list and `git merge-tree` checks described below, both run 2026-09-14
+Verified: 2026-09-15
+Source: pull request #2 on this repository, observed `"mergeable": "CONFLICTING"` before the merge commit `d67f5c8`; run list and `git merge-tree` checks described below, both run 2026-09-14. Applied again on 2026-09-15 for pull request #8: `main` had moved four commits during the Session and conflicted in four files, and after resolving, `gh pr view` reported `MERGEABLE` with `BLOCKED` exactly as described below.
 Recheck when: Sessions stop cloning a fresh workspace per Session, or gain a fetch of the default branch at start
 
 Symptom: a card is reported ready and moved to Review, and pressing Approve would fail. The Session sees nothing wrong: its workspace is a clone made when the Session started, its `origin/main` never moves during the Session, and `git status` is clean.
