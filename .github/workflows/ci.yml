@@ -1,4 +1,4 @@
-# Deployment contract: every push to main publishes four images to GHCR tagged :latest and :sha.
+# Deployment contract: every push to main publishes five images to GHCR tagged :latest and :sha.
 # Watchtower on minicore polls GHCR every 60 s and restarts the running containers. Roll back by
 # pinning a :sha tag in the compose file or re-running this job from an older commit.
 name: CI
