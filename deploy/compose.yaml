@@ -40,7 +40,8 @@ services:
       # Preview hostnames default to `<card>.preview.xode.cc`. That is a second-level subdomain,
       # which Cloudflare Universal SSL does not cover: without an advanced certificate on the zone,
       # set CARDBOARD_PREVIEW_HOST_PATTERN in deploy/.env to `{card}-preview.{domain}`, which is a
-      # first-level name Universal SSL does cover, and add the matching tunnel hostname.
+      # first-level name Universal SSL does cover. Route `*.xode.cc` to port 3073 after exact-host
+      # tunnel rules and add its proxied wildcard CNAME. `*-preview.xode.cc` is not a wildcard.
       CARDBOARD_PREVIEW_HOST_PATTERN: ${CARDBOARD_PREVIEW_HOST_PATTERN}
     volumes:
       - ../../data/cardboard/app:/data

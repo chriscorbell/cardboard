@@ -107,6 +107,8 @@ External services you need to set up once:
 
 ## Onboarding a repository
 
+Runner-hosted previews require a root `Dockerfile` that listens on `$PORT`. This repository's root `Dockerfile` links to `packages/app/Dockerfile`, so previews build the branch's app with a separate, seeded database and no production credentials. Access is checked by the preview router before requests reach that app. See [the preview runbook](docs/runbooks/previews.md) for DNS, certificates, and host configuration.
+
 Each board points at one repository. To prepare one, run the `cardboard-onboard` skill from [chriscorbell/skills](https://github.com/chriscorbell/skills) in that repository with your coding agent, or follow the same steps by hand: give `AGENTS.md` a verified acceptance command, install both GitHub Apps, create the `cardboard` ruleset, and add the board in the admin panel.
 
 > [!NOTE]

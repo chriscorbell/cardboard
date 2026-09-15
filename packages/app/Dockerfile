@@ -33,5 +33,5 @@ COPY packages/app/package.json ./package.json
 RUN mkdir -p /data && chown node:node /data
 USER node
 EXPOSE 3070
-HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:3070/healthz || exit 1
+HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- "http://127.0.0.1:${PORT}/healthz" || exit 1
 CMD ["node", "dist/server/index.js"]
