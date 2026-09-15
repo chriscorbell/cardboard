@@ -8,6 +8,8 @@ Sessions run on the Admin's personal Claude Code and Codex subscriptions rather 
 
 ## Status of verification
 
+Codex verified 2026-09-15 on minicore: with `CARDBOARD_CODEX_VIA_EGRESS=1` a Session container holding no Codex credential completed a turn through the proxy against the ChatGPT backend and replied on the card. The Codex exception below is closed; both Providers now keep their credential in the proxy.
+
 Claude, verified 2026-09-14 on minicore: a container on the workload network with no credential called `/v1/messages` through the proxy and received a model reply.
 
 Codex, partly verified 2026-09-15 against codex-cli 0.154.0. A Session container holding no Codex credential at all completed a turn against a stand-in provider through the proxy route, which settles the container half: naming a model provider is what does it, because Codex's default provider prefers a WebSocket to `chatgpt.com` that ignores any base URL. What is not verified is the proxy's own half — that `https://chatgpt.com/backend-api/codex` accepts the injected access token, and that the refresh against `https://auth.openai.com/oauth/token` works — because that needs the Admin's real Codex sign-in file. Until someone runs a Codex Session with `CARDBOARD_CODEX_VIA_EGRESS=1` and sees a model reply, the mounted sign-in file stays the default.
